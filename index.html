@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mundial 2026 — Primer Gol</title>
+<style>
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #5A23C8;
+    --bg-deep: #471C9E;
+    --surface: rgba(255,255,255,0.08);
+    --surface-2: rgba(255,255,255,0.14);
+    --line: rgba(255,255,255,0.18);
+    --text: #FFFFFF;
+    --text-muted: rgba(255,255,255,0.62);
+    --gold: #2EE6C9;
+    --win: #4CAF50;
+    --draw: #FF9800;
+    --loss: #F44336;
+    --radius: 12px;
+  }
+
+  html { scroll-behavior: smooth; overflow-x: hidden; }
+  body {
+    font-family: Georgia, 'Times New Roman', Times, serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+  ::selection { background: var(--gold); color: #2a1066; }
+  a { color: var(--gold); }
+
+  /* ─── REVEAL ON SCROLL ─── */
+  .reveal { opacity: 0; transform: translateY(26px); transition: opacity .7s ease, transform .7s cubic-bezier(.2,.7,.2,1); }
+  .reveal.in-view { opacity: 1; transform: none; }
+
+  /* ─── NARRATIVE COLUMN ─── */
+  .content { max-width: 620px; margin: 0 auto; padding: 0 1.5rem; }
+  .content.beat { padding-top: 3.6rem; padding-bottom: 3.6rem; }
+  .content p { font-size: 1.18rem; line-height: 1.7; color: rgba(255,255,255,0.9); margin-bottom: 1.05rem; }
+  .content p:last-child { margin-bottom: 0; }
+  .content .lead { font-size: 1.55rem; line-height: 1.45; font-weight: 500; color: #fff; }
+  .content b, .content .hl { color: var(--gold); font-weight: 600; }
+
+  /* ─── FULL-WIDTH VISUAL SECTIONS ─── */
+  .full { width: 100%; padding: 3.6rem 1.5rem; }
+  .full.tint { background: var(--bg-deep); }
+  .full-inner { max-width: 960px; margin: 0 auto; }
+
+  /* ─── COVER ─── */
+  .cover {
+    min-height: 92vh;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    text-align: center; padding: 2rem 1.5rem 3rem; position: relative;
+    background: radial-gradient(120% 75% at 50% 0%, rgba(255,255,255,0.10), transparent 60%), var(--bg);
+  }
+  .cover .eyebrow {
+    font-family: Georgia, 'Times New Roman', Times, serif; text-transform: uppercase;
+    letter-spacing: .28em; font-weight: 700; color: var(--gold); font-size: 1rem; margin-bottom: 1.1rem;
+  }
+  .cover h1 {
+    font-family: Georgia, 'Times New Roman', Times, serif; font-weight: 700; text-transform: uppercase;
+    font-size: clamp(1.7rem, 6.5vw, 4.6rem); line-height: .98; letter-spacing: -.01em; color: #fff;
+    width: 100%; max-width: 100%; overflow-wrap: break-word;
+  }
+  .cover h1 .yr { color: var(--gold); display: block; }
+  .cover .q { font-size: clamp(1.1rem, 3.4vw, 1.55rem); color: rgba(255,255,255,.85); margin-top: 1.5rem; max-width: min(30ch, 100%); }
+  .scroll-cue {
+    margin-top: 3.2rem; font-family: Georgia, 'Times New Roman', Times, serif; text-transform: uppercase;
+    letter-spacing: .2em; font-size: .8rem; color: rgba(255,255,255,.6);
+  }
+  .scroll-cue .arrow { display: block; font-size: 1.4rem; margin-top: .3rem; animation: bob 1.8s ease-in-out infinite; }
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(7px); } }
+
+  /* ─── VERDICT (3 balls) ─── */
+  .verdict-beat { text-align: center; }
+  .verdict {
+    font-family: Georgia, 'Times New Roman', Times, serif; font-weight: 700;
+    font-size: clamp(1.6rem, 5vw, 2.8rem); line-height: 1.12; max-width: 18ch; margin: 0 auto;
+  }
+  .verdict .hl { color: var(--gold); }
+  .verdict .muted {
+    display: block; font-family: Georgia, 'Times New Roman', Times, serif; font-weight: 400;
+    font-size: .95rem; color: var(--text-muted); margin-top: .9rem;
+  }
+  .hero-ball svg { width: 100%; max-width: 760px; height: auto; display: block; margin: 1.4rem auto 0; }
+  @media (max-width: 560px) { .ball-desc { display: none; } }
+
+  /* hero-stats: respaldo en móvil */
+  .hero-stats { display: none; }
+  @media (max-width: 560px) {
+    .hero-stats { display: flex; flex-direction: column; gap: .55rem; max-width: 360px; margin: 1.4rem auto 0; }
+    .hs-item { display: flex; align-items: baseline; gap: .5rem; background: var(--surface); border-radius: 10px; padding: .55rem .85rem; border-left: 4px solid; text-align: left; }
+    .hs-item.win { border-color: var(--win); } .hs-item.draw { border-color: var(--draw); } .hs-item.loss { border-color: var(--loss); }
+    .hs-item b { font-family: Georgia, 'Times New Roman', Times, serif; font-size: 1.45rem; font-weight: 700; }
+    .hs-item.win b { color: var(--win); } .hs-item.draw b { color: var(--draw); } .hs-item.loss b { color: var(--loss); }
+    .hs-item span { color: var(--gold); font-weight: 600; font-size: .9rem; }
+    .hs-item em { font-style: normal; color: rgba(255,255,255,.7); font-size: .82rem; margin-left: auto; text-align: right; }
+  }
+
+  /* ─── VIZ HEAD ─── */
+  .viz-head { text-align: center; max-width: 640px; margin: 0 auto 2rem; }
+  .viz-eyebrow { font-family: Georgia, 'Times New Roman', Times, serif; text-transform: uppercase; letter-spacing: .2em; font-weight: 700; font-size: .82rem; color: var(--gold); margin-bottom: .5rem; }
+  .viz-title { font-family: Georgia, 'Times New Roman', Times, serif; font-weight: 700; text-transform: uppercase; font-size: clamp(1.6rem, 5vw, 2.4rem); line-height: 1.05; margin-bottom: .7rem; }
+  .viz-sub { font-size: 1rem; color: rgba(255,255,255,.72); line-height: 1.55; }
+
+  /* ─── UNIT CHART ─── */
+  .unit-grid { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; max-width: 720px; margin: 0 auto; }
+  .unit { width: 30px; height: 30px; cursor: help; transition: transform .12s; }
+  .unit:hover { transform: scale(1.32); }
+  .unit svg { width: 100%; height: 100%; display: block; }
+
+  /* ─── BEESWARM ─── */
+  .swarm-wrap { max-width: 960px; margin: 0 auto; }
+  #swarm-host svg { width: 100%; height: auto; display: block; }
+  .swarm-axis line { stroke: rgba(255,255,255,0.28); stroke-width: 1; }
+  .swarm-axis text { fill: rgba(255,255,255,0.6); font-family: Georgia, 'Times New Roman', Times, serif; font-size: 11px; }
+  @keyframes swimIn { from { transform: translateX(var(--sx)); } to { transform: translateX(0); } }
+  @keyframes swimSweep { 0% { transform: translateX(0); opacity: 0; } 6% { opacity: .5; } 92% { opacity: .5; } 100% { transform: translateX(var(--sweepX, 656px)); opacity: 0; } }
+  .swarm-sweep { opacity: 0; }
+  #minutes-block.in-view .swarm-dot { animation-name: swimIn; animation-timing-function: linear; animation-fill-mode: both; }
+  #minutes-block.in-view .swarm-sweep { animation: swimSweep 2.6s linear both; }
+  .swarm-caption {
+    max-width: 700px; margin: 1.6rem auto 0;
+    font-size: clamp(1.05rem, 2.4vw, 1.3rem); font-weight: 500; line-height: 1.5;
+    padding: .85rem 1.2rem; border-left: 3px solid var(--gold);
+    background: rgba(255,255,255,0.09); border-radius: 0 8px 8px 0;
+  }
+  .swarm-caption .hl { color: var(--gold); font-weight: 700; }
+  .hl { color: var(--gold); }
+  .muted { color: var(--text-muted); }
+
+  /* ─── EXPLORER ─── */
+  .explorer-head { text-align: center; max-width: 640px; margin: 0 auto 1.5rem; }
+  .controls { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: center; max-width: 900px; margin: 0 auto 2rem; }
+  .filter-btn { font-family: Georgia, 'Times New Roman', Times, serif; font-size: .9rem; font-weight: 500; color: #fff; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: .5rem 1rem; cursor: pointer; transition: background .15s, border-color .15s; }
+  .filter-btn:hover { background: var(--surface-2); }
+  .filter-btn.active { background: var(--gold); color: #2a1066; border-color: var(--gold); font-weight: 700; }
+  .filter-btn .cnt { opacity: .65; font-variant-numeric: tabular-nums; }
+  .refresh-btn { font-family: Georgia, 'Times New Roman', Times, serif; font-size: .9rem; color: rgba(255,255,255,.85); background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: .5rem 1rem; cursor: pointer; transition: background .15s; }
+  .refresh-btn:hover { background: var(--surface); }
+  .spin-icon { display: inline-block; }
+  .spinning { animation: spin .6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .search-box { font-family: Georgia, 'Times New Roman', Times, serif; font-size: .9rem; color: #fff; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: .5rem 1rem; min-width: 220px; outline: none; }
+  .search-box::placeholder { color: rgba(255,255,255,.5); }
+  .search-box:focus { border-color: var(--gold); }
+
+  /* cards */
+  #main-content { max-width: 1080px; margin: 0 auto; }
+  .group-section { margin-bottom: 2.4rem; }
+  .group-header { display: flex; align-items: center; gap: .6rem; font-family: Georgia, 'Times New Roman', Times, serif; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; font-size: 1.2rem; margin-bottom: 1rem; }
+  .group-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--gold); }
+  .match-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .9rem; margin-bottom: 1rem; }
+  @media (max-width: 760px) { .match-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 480px) { .match-grid { grid-template-columns: 1fr; } }
+  .match-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: .9rem 1rem; border-left: 4px solid rgba(255,255,255,.25); transition: transform .15s ease, background .15s ease; }
+  .match-card:hover { transform: translateY(-2px); background: var(--surface-2); }
+  .match-card.win-first-goal { border-left-color: var(--win); }
+  .match-card.draw-first-goal { border-left-color: var(--draw); }
+  .match-card.loss-first-goal { border-left-color: var(--loss); }
+  .match-card.pending { opacity: .55; }
+  .match-meta { display: flex; justify-content: space-between; font-size: .72rem; color: rgba(255,255,255,.5); text-transform: uppercase; letter-spacing: .05em; margin-bottom: .6rem; }
+  .jornada { color: var(--gold); font-weight: 600; }
+  .teams { display: flex; flex-direction: column; gap: .4rem; }
+  .team-row { display: flex; align-items: center; gap: .55rem; }
+  .flag { font-size: 1.35rem; flex-shrink: 0; line-height: 1; }
+  .team-name { flex: 1; min-width: 0; font-size: 1rem; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tscore { font-family: Georgia, 'Times New Roman', Times, serif; font-weight: 700; font-size: 1.45rem; font-variant-numeric: tabular-nums; min-width: 1.1ch; text-align: right; color: rgba(255,255,255,.85); }
+  .team-row.win .team-name { font-weight: 700; }
+  .team-row.win .tscore { color: #fff; }
+  .first-goal-row { display: flex; align-items: center; gap: .5rem; margin-top: .8rem; padding-top: .7rem; border-top: 1px solid rgba(255,255,255,.1); }
+  .fg-icon { font-size: 1rem; }
+  .fg-info { flex: 1; min-width: 0; }
+  .fg-scorer { font-size: .85rem; font-weight: 500; }
+  .fg-detail { font-size: .72rem; color: rgba(255,255,255,.5); }
+  .result-badge { font-size: .72rem; font-weight: 600; padding: .2rem .5rem; border-radius: 6px; white-space: nowrap; }
+  .badge-win { background: rgba(76,175,80,.22); color: #aceeb0; }
+  .badge-draw { background: rgba(255,152,0,.22); color: #ffd49a; }
+  .badge-loss { background: rgba(244,67,54,.22); color: #ffb4ac; }
+  .badge-pending { background: rgba(255,255,255,.12); color: rgba(255,255,255,.6); }
+
+  /* loader / error / empty */
+  #loader { text-align: center; padding: 4rem 1.5rem; }
+  .loader-ball { width: 48px; height: 48px; border-radius: 50%; border: 4px solid rgba(255,255,255,.2); border-top-color: var(--gold); margin: 0 auto 1rem; animation: spin 1s linear infinite; }
+  .loader-text { color: rgba(255,255,255,.7); }
+  .empty-state { text-align: center; color: rgba(255,255,255,.6); padding: 3rem 1.5rem; }
+  #error-banner:not(:empty) { max-width: 880px; background: rgba(244,67,54,.16); border: 1px solid rgba(244,67,54,.4); border-radius: 10px; padding: .8rem 1rem; margin: 0 auto 1.5rem; color: #ffd0cb; }
+
+  /* tooltip */
+  #viz-tooltip { position: fixed; z-index: 60; pointer-events: none; max-width: 260px; background: #2a1170; border: 1px solid rgba(255,255,255,.28); color: #fff; font-family: Georgia, 'Times New Roman', Times, serif; font-size: .78rem; line-height: 1.35; padding: .4rem .6rem; border-radius: 6px; box-shadow: 0 8px 28px rgba(0,0,0,.35); opacity: 0; transition: opacity .12s; }
+  #viz-tooltip.show { opacity: 1; }
+
+  /* footer */
+  footer { text-align: center; font-size: .82rem; color: rgba(255,255,255,.55); padding: 3rem 1.5rem 4rem; max-width: 680px; margin: 0 auto; line-height: 1.7; }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .reveal { opacity: 1; transform: none; transition: none; }
+    .scroll-cue .arrow { animation: none; }
+    #minutes-block.in-view .swarm-dot { animation: none; transform: none; }
+    #minutes-block.in-view .swarm-sweep { display: none; }
+  }
+</style>
+</head>
+
+<body>
+
+<!-- ░░░ PORTADA ░░░ -->
+<header class="cover">
+  <div class="eyebrow">Mundial 2026</div>
+  <h1>¿Gana el que mete<span class="yr">el primer gol?</span></h1>
+  <p class="q">En el fútbol nada es tan predecible, pero siempre es entretenido ver los datos.</p>
+  <div class="scroll-cue">Desliza<span class="arrow">↓</span></div>
+</header>
+
+<!-- ░░░ INTRO ░░░ -->
+<div class="content beat reveal">
+  <p class="lead">Quizás el primer equipo en meter un gol en el partido sea mejor que su contrincante. Pero el fútbol es un deporte donde la presión psicológica puede afectar el resultado final.</p>
+  <p>Veamos qué ha pasado en el Mundial 2026 hasta ahora.</p>
+</div>
+
+<!-- ░░░ VEREDICTO: 3 pelotas ░░░ -->
+<section class="full verdict-beat reveal" id="hero" style="display:none">
+  <div class="full-inner">
+    <div class="verdict" id="verdict"></div>
+    <div class="hero-ball" id="ball-host"></div>
+    <div class="hero-stats">
+      <div class="hs-item win"><b id="stat-gana">—</b><span id="pct-gana"></span><em>ganó quien metió el primer gol</em></div>
+      <div class="hs-item draw"><b id="stat-empate">—</b><span id="pct-empate"></span><em>terminó en empate</em></div>
+      <div class="hs-item loss"><b id="stat-pierde">—</b><span id="pct-pierde"></span><em>perdió quien metió el primer gol</em></div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ░░░ UNIDADES ░░░ -->
+<section class="full tint reveal" id="units-block" style="display:none">
+  <div class="full-inner">
+    <div class="viz-head">
+      <div class="viz-title">Cada partido, según su primer gol</div>
+      <div class="viz-sub">La cara muestra cómo le fue al equipo que metió primero: 🙂 ganó, 😐 empató, 🙁 perdió. Ordenadas por resultado, el bloque de color es la proporción real. Pasa el cursor para ver el partido.</div>
+    </div>
+    <div class="unit-grid" id="unit-grid"></div>
+  </div>
+</section>
+
+
+<!-- ░░░ BEESWARM ░░░ -->
+<section class="full reveal" id="minutes-block" style="display:none">
+  <div class="full-inner">
+    <div class="viz-head">
+      <div class="viz-eyebrow">¿Importa cuándo?</div>
+      <div class="viz-title">El minuto del primer gol y lo que pasó después</div>
+      <div class="viz-sub">Cada punto es un partido, ubicado en el minuto del primer gol y coloreado por el resultado de quien lo metió. Si los rojos se juntan a la derecha, abrir tarde sería más frágil.</div>
+    </div>
+    <div class="swarm-wrap"><div id="swarm-host"></div></div>
+    <div class="swarm-caption" id="swarm-caption"></div>
+  </div>
+</section>
+
+<!-- ░░░ NARRATIVA ░░░ -->
+<div class="content beat reveal">
+  <p>Y si quieres revisar la evidencia, acá está cada partido del mundial, grupo por grupo.</p>
+</div>
+
+<!-- ░░░ EXPLORADOR ░░░ -->
+<div class="full tint reveal">
+  <div class="explorer-head">
+    <div class="viz-eyebrow">Explora</div>
+    <div class="viz-title">Partido por partido</div>
+  </div>
+  <div class="controls">
+    <button class="filter-btn active" data-filter="all">Todos <span class="cnt" id="cnt-all"></span></button>
+    <button class="filter-btn" data-filter="win">✓ Ganó <span class="cnt" id="cnt-win"></span></button>
+    <button class="filter-btn" data-filter="draw">= Empató <span class="cnt" id="cnt-draw"></span></button>
+    <button class="filter-btn" data-filter="loss">✗ Perdió <span class="cnt" id="cnt-loss"></span></button>
+    <button class="refresh-btn" id="refresh-btn">
+      <span class="spin-icon" id="spin-icon">↻</span> Actualizar datos
+    </button>
+    <input class="search-box" type="text" id="search-box" placeholder="Buscar país o jugador…">
+  </div>
+  <div id="error-banner"></div>
+  <main id="main-content">
+    <div id="loader">
+      <div class="loader-ball"></div>
+      <div class="loader-text">Cargando datos del Mundial…</div>
+    </div>
+  </main>
+</div>
+
+<div id="viz-tooltip"></div>
+
+<footer>
+  Datos: <a href="https://github.com/openfootball/worldcup.json" target="_blank" rel="noopener">openfootball/worldcup.json</a> (dominio público, CC0) · Mundial FIFA 2026 · Canadá · USA · México<br>
+  No es en vivo: los resultados se actualizan con cierto retraso respecto al partido.<br><br>
+  Hecho con ❤️ por <a href="https://mandiuu.github.io/" target="_blank" rel="noopener">Carla Mandiola</a>
+</footer>
+
+
+
+<script>
+// ════════════════════════════════════════════════════════════════════════
+//  Fuente: openfootball/worldcup.json — JSON público, sin API key, CORS OK.
+//  Sin backend: el navegador lee el JSON directo y calcula el primer gol.
+// ════════════════════════════════════════════════════════════════════════
+const OPENFOOTBALL_URL =
+  "https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json";
+
+let allMatches = [];
+let currentFilter = 'all';
+
+// ── Mapa de los 48 equipos: nombre inglés (openfootball) → español + bandera ──
+const TEAMS = {
+  "Algeria":              { es: "Argelia",              flag: "🇩🇿" },
+  "Argentina":            { es: "Argentina",            flag: "🇦🇷" },
+  "Australia":            { es: "Australia",            flag: "🇦🇺" },
+  "Austria":              { es: "Austria",              flag: "🇦🇹" },
+  "Belgium":              { es: "Bélgica",              flag: "🇧🇪" },
+  "Bosnia & Herzegovina": { es: "Bosnia y Herzegovina", flag: "🇧🇦" },
+  "Brazil":               { es: "Brasil",               flag: "🇧🇷" },
+  "Canada":               { es: "Canadá",               flag: "🇨🇦" },
+  "Cape Verde":           { es: "Cabo Verde",           flag: "🇨🇻" },
+  "Colombia":             { es: "Colombia",             flag: "🇨🇴" },
+  "Croatia":              { es: "Croacia",              flag: "🇭🇷" },
+  "Curaçao":              { es: "Curazao",              flag: "🇨🇼" },
+  "Czech Republic":       { es: "Chequia",              flag: "🇨🇿" },
+  "DR Congo":             { es: "RD del Congo",         flag: "🇨🇩" },
+  "Ecuador":              { es: "Ecuador",              flag: "🇪🇨" },
+  "Egypt":                { es: "Egipto",               flag: "🇪🇬" },
+  "England":              { es: "Inglaterra",           flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
+  "France":               { es: "Francia",              flag: "🇫🇷" },
+  "Germany":              { es: "Alemania",             flag: "🇩🇪" },
+  "Ghana":                { es: "Ghana",                flag: "🇬🇭" },
+  "Haiti":                { es: "Haití",                flag: "🇭🇹" },
+  "Iran":                 { es: "Irán",                 flag: "🇮🇷" },
+  "Iraq":                 { es: "Irak",                 flag: "🇮🇶" },
+  "Ivory Coast":          { es: "Costa de Marfil",      flag: "🇨🇮" },
+  "Japan":                { es: "Japón",                flag: "🇯🇵" },
+  "Jordan":               { es: "Jordania",             flag: "🇯🇴" },
+  "Mexico":               { es: "México",               flag: "🇲🇽" },
+  "Morocco":              { es: "Marruecos",            flag: "🇲🇦" },
+  "Netherlands":          { es: "Países Bajos",         flag: "🇳🇱" },
+  "New Zealand":          { es: "Nueva Zelanda",        flag: "🇳🇿" },
+  "Norway":               { es: "Noruega",              flag: "🇳🇴" },
+  "Panama":               { es: "Panamá",               flag: "🇵🇦" },
+  "Paraguay":             { es: "Paraguay",             flag: "🇵🇾" },
+  "Portugal":             { es: "Portugal",             flag: "🇵🇹" },
+  "Qatar":                { es: "Catar",                flag: "🇶🇦" },
+  "Saudi Arabia":         { es: "Arabia Saudita",       flag: "🇸🇦" },
+  "Scotland":             { es: "Escocia",              flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿" },
+  "Senegal":              { es: "Senegal",              flag: "🇸🇳" },
+  "South Africa":         { es: "Sudáfrica",            flag: "🇿🇦" },
+  "South Korea":          { es: "Corea del Sur",        flag: "🇰🇷" },
+  "Spain":                { es: "España",               flag: "🇪🇸" },
+  "Sweden":               { es: "Suecia",               flag: "🇸🇪" },
+  "Switzerland":          { es: "Suiza",                flag: "🇨🇭" },
+  "Tunisia":              { es: "Túnez",                flag: "🇹🇳" },
+  "Turkey":               { es: "Turquía",              flag: "🇹🇷" },
+  "USA":                  { es: "Estados Unidos",       flag: "🇺🇸" },
+  "Uruguay":              { es: "Uruguay",              flag: "🇺🇾" },
+  "Uzbekistan":           { es: "Uzbekistán",           flag: "🇺🇿" },
+};
+
+const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+
+const teamES   = n => (TEAMS[n] && TEAMS[n].es)   || n;
+const teamFlag = n => (TEAMS[n] && TEAMS[n].flag) || '🏳️';
+const fmtFecha = iso => { const p = iso.split('-'); return `${+p[2]} ${MESES[+p[1]-1]}`; };
+
+// "90+4" → 90.04 para ordenar; los goles en tiempo añadido van después del 90 normal.
+function minuteSort(min) {
+  const s = String(min);
+  if (s.includes('+')) { const [a, b] = s.split('+'); return (+a || 0) + (+b || 0) / 100; }
+  return +s || 0;
+}
+
+function setLoaderText(msg) {
+  const el = document.querySelector('#main-content .loader-text');
+  if (el) el.textContent = msg;
+}
+
+// ── Primer gol del partido ────────────────────────────────────────────────
+// openfootball ya acredita el gol al equipo del array en que está (incluidos
+// los autogoles, que se listan en el array del equipo beneficiado). Por eso
+// NO hay que invertir nada: el array = el equipo al que cuenta el gol.
+function firstGoal(match) {
+  const goals = [];
+  (match.goals1 || []).forEach(g => goals.push(Object.assign({}, g, { team: match.team1 })));
+  (match.goals2 || []).forEach(g => goals.push(Object.assign({}, g, { team: match.team2 })));
+  if (!goals.length) return null;
+  goals.sort((a, b) => minuteSort(a.minute) - minuteSort(b.minute));
+  return goals[0];
+}
+
+// ── Transformación: JSON de openfootball → filas que pinta el front ──────────
+function transform(data) {
+  const rows = [];
+  for (const mt of (data.matches || [])) {
+    // Solo fase de grupos: las eliminatorias aún tienen placeholders (1A, 2B…).
+    if (!mt.group) continue;
+
+    const grupo  = (mt.group || '').replace(/group/i, '').trim();
+    const jugado = !!(mt.score && mt.score.ft);
+
+    const row = {
+      grupo,
+      _date: mt.date,
+      fecha: fmtFecha(mt.date),
+      equipoLocal:     teamES(mt.team1),
+      equipoVisitante: teamES(mt.team2),
+      flagLocal:       teamFlag(mt.team1),
+      flagVisitante:   teamFlag(mt.team2),
+      jugado,
+      golesLocal:      jugado ? mt.score.ft[0] : null,
+      golesVisitante:  jugado ? mt.score.ft[1] : null,
+      primerGolEquipo: null,
+      primerGolJugador: null,
+      primerGolMinuto: null,
+      resultadoPrimerGol: null,
+    };
+
+    if (jugado) {
+      const [s1, s2] = mt.score.ft;
+      const winner = s1 > s2 ? mt.team1 : (s2 > s1 ? mt.team2 : null);
+      const fg = firstGoal(mt);
+
+      if (fg) {
+        row.primerGolEquipo = teamES(fg.team);
+        let etiqueta = fg.name || '';
+        if (fg.owngoal)      etiqueta += ' (en propia)';
+        else if (fg.penalty) etiqueta += ' (pen)';
+        row.primerGolJugador  = etiqueta;
+        row.primerGolMinuto   = fg.minute;
+        row.resultadoPrimerGol = winner === null ? 'empate'
+                                : (winner === fg.team ? 'victoria' : 'derrota');
+      } else {
+        row.resultadoPrimerGol = 'empate'; // 0-0
+      }
+    }
+
+    rows.push(row);
+  }
+
+  // Jornada (1, 2, 3) por grupo: según el orden de las fechas dentro del grupo.
+  const byGroup = {};
+  rows.forEach(r => { (byGroup[r.grupo] = byGroup[r.grupo] || []).push(r); });
+  for (const g in byGroup) {
+    const dates = [...new Set(byGroup[g].map(r => r._date))].sort();
+    byGroup[g].forEach(r => { r.jornada = dates.indexOf(r._date) + 1; });
+  }
+
+  return rows;
+}
+
+async function fetchMatches() {
+  const btn = document.getElementById('refresh-btn');
+  const spinner = document.getElementById('spin-icon');
+  btn.disabled = true;
+  spinner.classList.add('spinning');
+  document.getElementById('main-content').innerHTML = `
+    <div id="loader">
+      <div class="loader-ball"></div>
+      <div class="loader-text">Cargando datos del Mundial…</div>
+    </div>`;
+  document.getElementById('error-banner').style.display = 'none';
+
+  try {
+    const res = await fetch(OPENFOOTBALL_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    allMatches = transform(data);
+    if (!allMatches.length) throw new Error('El JSON no trajo partidos de fase de grupos.');
+    renderOverview(allMatches);
+    renderAll();
+  } catch (err) {
+    console.error('fetchMatches error:', err);
+    const banner = document.getElementById('error-banner');
+    banner.style.display = 'block';
+    banner.textContent =
+      `No se pudieron cargar los datos (${err.message}). Revisa tu conexión y vuelve a intentar.`;
+    document.getElementById('main-content').innerHTML =
+      '<div class="empty-state">Sin datos por ahora.</div>';
+  } finally {
+    btn.disabled = false;
+    spinner.classList.remove('spinning');
+  }
+}
+
+function renderAll() {
+  const search = document.getElementById('search-box').value.toLowerCase();
+  const filtered = allMatches.filter(m => {
+    const matchesSearch = !search ||
+      m.equipoLocal?.toLowerCase().includes(search) ||
+      m.equipoVisitante?.toLowerCase().includes(search) ||
+      m.primerGolJugador?.toLowerCase().includes(search);
+    const matchesFilter =
+      currentFilter === 'all' ||
+      (currentFilter === 'win'  && m.resultadoPrimerGol === 'victoria') ||
+      (currentFilter === 'draw' && m.resultadoPrimerGol === 'empate') ||
+      (currentFilter === 'loss' && m.resultadoPrimerGol === 'derrota');
+    return matchesSearch && matchesFilter;
+  });
+
+  if (filtered.length === 0) {
+    document.getElementById('main-content').innerHTML =
+      '<div class="empty-state">No se encontraron partidos con ese filtro.</div>';
+    return;
+  }
+
+  // Agrupar por grupo (una grilla por grupo, ordenada por jornada y fecha)
+  const byGroup = {};
+  for (const m of filtered) {
+    const g = m.grupo || 'Sin grupo';
+    (byGroup[g] = byGroup[g] || []).push(m);
+  }
+
+  let html = '';
+  for (const grupo of Object.keys(byGroup).sort()) {
+    const matches = byGroup[grupo].sort((a, b) => (a.jornada - b.jornada) || a._date.localeCompare(b._date));
+    html += `<div class="group-section">
+      <div class="group-header"><div class="group-dot"></div>Grupo ${grupo}</div>
+      <div class="match-grid">`;
+    for (const m of matches) html += renderCard(m);
+    html += `</div></div>`;
+  }
+  document.getElementById('main-content').innerHTML = html;
+}
+
+function renderCard(m) {
+  const r = m.resultadoPrimerGol;
+  const cardClass = !m.jugado ? 'pending' :
+    r === 'victoria' ? 'win-first-goal' :
+    r === 'empate'   ? 'draw-first-goal' :
+    r === 'derrota'  ? 'loss-first-goal' : '';
+
+  const badgeClass = r === 'victoria' ? 'badge-win' :
+                     r === 'empate'   ? 'badge-draw' :
+                     r === 'derrota'  ? 'badge-loss' : 'badge-pending';
+
+  const badgeText = r === 'victoria' ? '✓ Ganó' :
+                    r === 'empate'   ? '= Empató' :
+                    r === 'derrota'  ? '✗ Perdió' : 'Pendiente';
+
+  // Marcador vertical: una fila por equipo (sin nombres cortados). Ganador en negrita.
+  const w1 = m.jugado && m.golesLocal > m.golesVisitante;
+  const w2 = m.jugado && m.golesVisitante > m.golesLocal;
+  const sc = g => m.jugado ? g : '–';
+  const teams = `
+    <div class="teams">
+      <div class="team-row${w1 ? ' win' : ''}">
+        <span class="flag">${m.flagLocal}</span>
+        <span class="team-name">${m.equipoLocal}</span>
+        <span class="tscore">${sc(m.golesLocal)}</span>
+      </div>
+      <div class="team-row${w2 ? ' win' : ''}">
+        <span class="flag">${m.flagVisitante}</span>
+        <span class="team-name">${m.equipoVisitante}</span>
+        <span class="tscore">${sc(m.golesVisitante)}</span>
+      </div>
+    </div>`;
+
+  // Fila inferior según estado
+  let bottom;
+  if (!m.jugado) {
+    bottom = `
+      <div class="first-goal-row">
+        <span class="fg-icon">🕒</span>
+        <div class="fg-info"><div class="fg-scorer" style="color:var(--text-muted)">Aún no se juega</div></div>
+        <div class="result-badge badge-pending">Pendiente</div>
+      </div>`;
+  } else if (m.primerGolJugador) {
+    bottom = `
+      <div class="first-goal-row">
+        <span class="fg-icon">⚽</span>
+        <div class="fg-info">
+          <div class="fg-scorer">${m.primerGolJugador}</div>
+          <div class="fg-detail">${m.primerGolEquipo} · min. ${m.primerGolMinuto}</div>
+        </div>
+        <div class="result-badge ${badgeClass}">${badgeText}</div>
+      </div>`;
+  } else {
+    bottom = `
+      <div class="first-goal-row">
+        <span class="fg-icon">🔒</span>
+        <div class="fg-info"><div class="fg-scorer" style="color:var(--text-muted)">Sin goles (0-0)</div></div>
+        <div class="result-badge badge-draw">= Empató</div>
+      </div>`;
+  }
+
+  return `
+  <div class="match-card ${cardClass}">
+    <div class="match-meta">
+      <span class="jornada">J${m.jornada}</span>
+      <span>${m.fecha}</span>
+    </div>
+    ${teams}
+    ${bottom}
+  </div>`;
+}
+
+// ── Helpers de geometría ───────────────────────────────────────────────────
+function pentagonPath(cx, cy, r, rot) {
+  let p = '';
+  for (let i = 0; i < 5; i++) {
+    const a = (-90 + rot + i * 72) * Math.PI / 180;
+    p += (i === 0 ? 'M' : 'L') + (cx + r * Math.cos(a)).toFixed(1) + ' ' + (cy + r * Math.sin(a)).toFixed(1) + ' ';
+  }
+  return p + 'Z';
+}
+
+const colorVar = r => r === 'victoria' ? 'var(--win)' : r === 'empate' ? 'var(--draw)' : 'var(--loss)';
+
+// Geometría real de un pelota (icosaedro truncado) proyectada a 2D, centrada en (0,0).
+const BALL_FACES = [
+  {p:"-14.3,-96.2 -10.5,-69.8 31.5,-58.3 53.6,-77.5 25.3,-101",t:"pent",cy:-80.6},
+  {p:"86.2,-56.3 90.5,-58.5 62.2,-82 29.5,-103.2 25.3,-101 53.6,-77.5",t:"hex",cy:-79.8},
+  {p:"-14.3,-96.2 -10.5,-69.8 31.5,-58.3 42,-17.8 53.6,-77.5 25.3,-101",t:"hex",cy:-70.1},
+  {p:"-10.5,-69.8 -14.3,-96.2 -49.6,-93.7 -81.1,-64.7 -77.2,-38.3 -41.9,-40.9",t:"hex",cy:-67.3},
+  {p:"96.7,-15.8 107.5,7 103.7,-19.4 90.5,-58.5 86.2,-56.3",t:"pent",cy:-28.6},
+  {p:"-41.9,-40.9 -77.2,-38.3 -88.5,3.8 -60.2,27.2 -31.4,-0.4",t:"pent",cy:-9.7},
+  {p:"-41.9,-40.9 -77.2,-38.3 -88.5,3.8 -103.7,19.4 -60.2,27.2 -31.4,-0.4",t:"hex",cy:-4.9},
+  {p:"63.3,45.5 74.6,3.5 42,-17.8 31.5,-58.3 10.6,11.2 23.7,50.3",t:"hex",cy:5.7},
+  {p:"63.3,45.5 74.6,3.5 42,-17.8 10.6,11.2 23.7,50.3",t:"pent",cy:18.5},
+  {p:"74.6,3.5 63.3,45.5 74.1,68.3 96.2,49 107.5,7 96.7,-15.8",t:"hex",cy:26.3},
+  {p:"-31.4,-0.4 -60.2,27.2 -47,66.3 -5.1,77.9 23.7,50.3 10.6,11.2",t:"hex",cy:38.8},
+  {p:"96.2,49 74.1,68.3 45.3,95.9 5.7,100.7 49.6,93.7 81.1,64.7",t:"hex",cy:78.7},
+  {p:"-62.2,82 -29.5,103.2 5.7,100.7 -5.1,77.9 -47,66.3",t:"pent",cy:86},
+  {p:"-62.2,82 -29.5,103.2 5.7,100.7 45.3,95.9 -5.1,77.9 -47,66.3",t:"hex",cy:87.7}
+];
+const BALL_SEAM = [
+  "31.5 -58.3 42 -17.8","31.5 -58.3 53.6 -77.5","31.5 -58.3 -10.5 -69.8",
+  "42 -17.8 74.6 3.5","42 -17.8 10.6 11.2","45.3 95.9 5.7 100.7",
+  "45.3 95.9 74.1 68.3","5.7 100.7 -5.1 77.9","5.7 100.7 -29.5 103.2",
+  "-88.5 3.8 -103.7 19.4","-88.5 3.8 -77.2 -38.3","-88.5 3.8 -60.2 27.2",
+  "-103.7 19.4 -90.5 58.5","74.1 68.3 63.3 45.5","74.1 68.3 96.2 49",
+  "-49.6 -93.7 -14.3 -96.2","-49.6 -93.7 -81.1 -64.7","-5.1 77.9 23.7 50.3",
+  "-5.1 77.9 -47 66.3","-29.5 103.2 -62.2 82","107.5 7 96.2 49",
+  "107.5 7 96.7 -15.8","-77.2 -38.3 -81.1 -64.7","-77.2 -38.3 -41.9 -40.9",
+  "-60.2 27.2 -47 66.3","-60.2 27.2 -31.4 -0.4","-90.5 58.5 -62.2 82",
+  "53.6 -77.5 25.3 -101","53.6 -77.5 86.2 -56.3","74.6 3.5 63.3 45.5",
+  "74.6 3.5 96.7 -15.8","-10.5 -69.8 -14.3 -96.2","-10.5 -69.8 -41.9 -40.9",
+  "10.6 11.2 23.7 50.3","10.6 11.2 -31.4 -0.4","25.3 -101 -14.3 -96.2",
+  "63.3 45.5 23.7 50.3","-47 66.3 -62.2 82","86.2 -56.3 96.7 -15.8",
+  "-41.9 -40.9 -31.4 -0.4"
+];
+
+// ── Tres pelotas, una por categoría, con tamaño proporcional al % ────────────
+// Tamaño por ÁREA: radio ∝ √(porcentaje). Escalar el radio lineal con el dato
+// haría crecer el área al cuadrado y exageraría las diferencias (error clásico
+// de los símbolos proporcionales). Cada pelota es de un color sólido; las
+// costuras blancas dan la textura, sin paneles oscuros que confundan.
+function drawBall(pw, pd, pl) {
+  const cats = [
+    { p: pw, fill: 'var(--win)',  dark: '#2e7d32', cx: 168, d1: 'ganó quien',   d2: 'metió el primer gol' },
+    { p: pd, fill: 'var(--draw)', dark: '#c77800', cx: 400, d1: 'terminó',      d2: 'en empate' },
+    { p: pl, fill: 'var(--loss)', dark: '#c62828', cx: 596, d1: 'perdió quien', d2: 'metió el primer gol' },
+  ];
+  const maxP = Math.max(pw, pd, pl, 1);
+  const Rmax = 92, baseY = 224;
+
+  const seam = BALL_SEAM.map(s => {
+    const [a, b, c, d] = s.split(' ');
+    return `<line x1="${a}" y1="${b}" x2="${c}" y2="${d}"/>`;
+  }).join('');
+  // pentágonos en un tono más oscuro de la MISMA categoría: dan la textura de
+  // balón, son polígonos COMPLETOS sobre el disco sólido (no huecos del fondo)
+  const pentDark = dark => BALL_FACES.filter(f => f.t === 'pent').map(f => `<polygon points="${f.p}" fill="${dark}"/>`).join('');
+  const ballMarkup = (cx, R, fill, dark) => {
+    const s = R / 110, cy = baseY - R;
+    return `<ellipse cx="${cx}" cy="${baseY + 4}" rx="${(R * 0.82).toFixed(1)}" ry="6" fill="#000" opacity="0.18"/>` +
+      `<g transform="translate(${cx},${cy}) scale(${s.toFixed(3)})">
+        <circle cx="0" cy="0" r="110" fill="${fill}"/>
+        ${pentDark(dark)}
+        <circle cx="0" cy="0" r="110" fill="url(#ballGloss)"/>
+        <g fill="none" stroke="#f7f5ee" stroke-opacity="0.9" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">${seam}</g>
+        <circle cx="0" cy="0" r="110" fill="none" stroke="#0a1628" stroke-opacity="0.5" stroke-width="3"/>
+      </g>`;
+  };
+
+  let balls = '', labels = '';
+  cats.forEach(c => {
+    const R = Rmax * Math.sqrt(c.p / maxP);
+    balls += ballMarkup(c.cx, R, c.fill, c.dark);
+    labels += `<text x="${c.cx}" y="262" text-anchor="middle" font-family="Georgia, 'Times New Roman', Times, serif" font-weight="700" font-size="40" fill="${c.fill}">${c.p}%</text>` +
+              `<text class="ball-desc" x="${c.cx}" y="284" text-anchor="middle" font-family="Georgia, 'Times New Roman', Times, serif" font-size="13.5" fill="var(--text-muted)">${c.d1}</text>` +
+              `<text class="ball-desc" x="${c.cx}" y="301" text-anchor="middle" font-family="Georgia, 'Times New Roman', Times, serif" font-size="13.5" fill="var(--text-muted)">${c.d2}</text>`;
+  });
+
+  return `
+  <svg viewBox="0 0 740 320" xmlns="http://www.w3.org/2000/svg" role="img"
+       aria-label="Tres pelotas por tamaño: ${pw}% ganó, ${pd}% empató, ${pl}% perdió quien metió el primer gol">
+    <defs>
+      <radialGradient id="ballGloss" cx="0.36" cy="0.30" r="0.75">
+        <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.30"/>
+        <stop offset="45%"  stop-color="#ffffff" stop-opacity="0.04"/>
+        <stop offset="100%" stop-color="#000000" stop-opacity="0.20"/>
+      </radialGradient>
+    </defs>
+    ${balls}
+    ${labels}
+  </svg>`;
+}
+
+// ── Círculo con carita para el gráfico de unidades ──────────────────────────
+function miniBall(color, mood) {
+  const mouth = mood === 'happy' ? 'M7.3 13 Q11 16.8 14.7 13'   // sonrisa
+              : mood === 'sad'   ? 'M7.3 15 Q11 11.2 14.7 15'   // ceño
+              : 'M7.4 14 L14.6 14';                              // neutra
+  return `<svg viewBox="0 0 22 22">
+    <circle cx="11" cy="11" r="10" fill="${color}"/>
+    <circle cx="8" cy="9" r="1.3" fill="#0a1628"/>
+    <circle cx="14" cy="9" r="1.3" fill="#0a1628"/>
+    <path d="${mouth}" fill="none" stroke="#0a1628" stroke-width="1.4" stroke-linecap="round"/>
+    <circle cx="11" cy="11" r="10" fill="none" stroke="#0a1628" stroke-opacity="0.4" stroke-width="1"/>
+  </svg>`;
+}
+
+// Tooltip compartido (unidades y beeswarm): marcador + país que ganó (sin goleador)
+function unitTip(m) {
+  const winner = m.golesLocal > m.golesVisitante ? m.equipoLocal
+               : m.golesVisitante > m.golesLocal ? m.equipoVisitante : null;
+  return `${m.equipoLocal} ${m.golesLocal}-${m.golesVisitante} ${m.equipoVisitante} · ${winner ? 'ganó ' + winner : 'empate'}`;
+}
+
+function drawUnits(played) {
+  const order = { victoria: 0, empate: 1, derrota: 2 };
+  const moodOf = r => r === 'victoria' ? 'happy' : r === 'empate' ? 'neutral' : 'sad';
+  const sorted = [...played].sort((a, b) => order[a.resultadoPrimerGol] - order[b.resultadoPrimerGol]);
+  let html = '';
+  for (const m of sorted) {
+    html += `<div class="unit" data-tip="${unitTip(m).replace(/"/g, '&quot;')}">${miniBall(colorVar(m.resultadoPrimerGol), moodOf(m.resultadoPrimerGol))}</div>`;
+  }
+  document.getElementById('unit-grid').innerHTML = html;
+}
+
+// ── Beeswarm: minuto del primer gol vs. resultado ───────────────────────────
+function drawBeeswarm(played) {
+  const pts = played
+    .filter(m => m.primerGolMinuto != null && m.resultadoPrimerGol)
+    .map(m => ({ min: minuteSort(m.primerGolMinuto), r: m.resultadoPrimerGol, m }));
+
+  const W = 720, padL = 32, padR = 32, padB = 42, padTop = 30, baseY = 250, maxMin = 95;
+  const x = v => padL + Math.min(v, maxMin) / maxMin * (W - padL - padR);
+  const rad = 8.5, gap = 2.5;
+
+  pts.sort((a, b) => a.min - b.min);
+  const placed = [];
+  for (const p of pts) {
+    const px = x(p.min);
+    let y;
+    for (let k = 0; k < 60; k++) {
+      y = baseY - rad - 2 - k * (2 * rad + gap);
+      if (!placed.some(q => Math.abs(q.x - px) < 2 * rad && Math.abs(q.y - y) < 2 * rad)) break;
+    }
+    p.x = px; p.y = y; placed.push(p);
+  }
+
+  // viewBox ajustado al alto real de las columnas (sin espacio muerto arriba)
+  const topY = placed.length ? Math.min(...placed.map(p => p.y)) : baseY - 60;
+  const vbTop = Math.min(topY - rad - padTop, baseY - 90);
+  const vbH = (baseY + padB) - vbTop;
+  const labelY = vbTop + 12, midTop = vbTop + 22;
+
+  let ticks = '';
+  [0, 15, 30, 45, 60, 75, 90].forEach(t => {
+    const tx = x(t);
+    ticks += `<line x1="${tx}" y1="${baseY}" x2="${tx}" y2="${baseY + 6}"/>` +
+             `<text x="${tx}" y="${baseY + 23}" text-anchor="middle">${t}'</text>`;
+  });
+  const ht = x(45);
+  const sweepX = (W - padL - padR).toFixed(0);
+  const TOTAL = 2.6; // duración de la carrera: cada gol nada del saque (0') a su minuto
+  let dots = '';
+  for (const p of placed) {
+    const dur = Math.max(0.25, (p.min / maxMin) * TOTAL).toFixed(2);
+    const off = (padL - p.x).toFixed(1); // arranca en la línea de saque
+    dots += `<circle class="swarm-dot" data-tip="${unitTip(p.m).replace(/"/g, '&quot;')}" style="--sx:${off}px;animation-duration:${dur}s" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${rad}" fill="${colorVar(p.r)}" stroke="#0a1628" stroke-opacity="0.5" stroke-width="1"/>`;
+  }
+
+  document.getElementById('swarm-host').innerHTML = `
+    <svg viewBox="0 ${vbTop.toFixed(0)} ${W} ${vbH.toFixed(0)}" xmlns="http://www.w3.org/2000/svg">
+      <g class="swarm-axis">
+        <line x1="${ht}" y1="${midTop}" x2="${ht}" y2="${baseY}" stroke-dasharray="3 4" stroke-opacity="0.6"/>
+        <text x="${ht}" y="${labelY}" text-anchor="middle">medio tiempo</text>
+        <line x1="${padL}" y1="${baseY}" x2="${W - padR}" y2="${baseY}"/>
+        ${ticks}
+      </g>
+      <line class="swarm-sweep" style="--sweepX:${sweepX}px" x1="${padL}" y1="${midTop - 4}" x2="${padL}" y2="${baseY}" stroke="var(--gold)" stroke-width="2.5"/>
+      ${dots}
+    </svg>`;
+
+  // Insight de la leyenda
+  const early = pts.filter(p => p.min <= 30);
+  const late  = pts.filter(p => p.min > 30);
+  const wr = arr => arr.length ? Math.round(arr.filter(p => p.r === 'victoria').length / arr.length * 100) : 0;
+  const mean = pts.length ? Math.round(pts.reduce((s, p) => s + p.min, 0) / pts.length) : 0;
+  document.getElementById('swarm-caption').innerHTML = pts.length
+    ? `En promedio, el primer gol cayó al <span class="hl">minuto ${mean}</span>. ` +
+      `Cuando llegó en los primeros 30', quien lo metió ganó el <span class="hl">${wr(early)}%</span> de las veces` +
+      (late.length ? `; después del 30', el <span class="hl">${wr(late)}%</span>.` : '.')
+    : '';
+}
+
+// ── Resumen general: dibuja todo el overview a partir de los datos ──────────
+function renderOverview(matches) {
+  const played  = matches.filter(m => m.jugado);
+  const jugados = played.length;
+  const gana    = played.filter(m => m.resultadoPrimerGol === 'victoria').length;
+  const empata  = played.filter(m => m.resultadoPrimerGol === 'empate').length;
+  const pierde  = played.filter(m => m.resultadoPrimerGol === 'derrota').length;
+  const pct = n => jugados ? Math.round(n / jugados * 100) : 0;
+  const pw = pct(gana), pd = pct(empata), pl = Math.max(0, 100 - pw - pd);
+
+  document.getElementById('stat-gana').textContent   = gana;
+  document.getElementById('stat-empate').textContent = empata;
+  document.getElementById('stat-pierde').textContent = pierde;
+  document.getElementById('pct-gana').textContent   = jugados ? pw + '%' : '';
+  document.getElementById('pct-empate').textContent = jugados ? pd + '%' : '';
+  document.getElementById('pct-pierde').textContent = jugados ? pl + '%' : '';
+
+  document.getElementById('cnt-all').textContent  = `· ${matches.length}`;
+  document.getElementById('cnt-win').textContent  = `· ${gana}`;
+  document.getElementById('cnt-draw').textContent = `· ${empata}`;
+  document.getElementById('cnt-loss').textContent = `· ${pierde}`;
+
+  const hero  = document.getElementById('hero');
+  const units = document.getElementById('units-block');
+  const mins  = document.getElementById('minutes-block');
+  if (!jugados) { hero.style.display = units.style.display = mins.style.display = 'none'; return; }
+
+  const fechas = played.map(m => m._date).sort();
+  const ultima = fmtFecha(fechas[fechas.length - 1]);
+  document.getElementById('verdict').innerHTML =
+    `De los <span class="hl">${jugados}</span> partidos jugados, en el ` +
+    `<span class="hl">${pw}%</span> ganó quien metió el primer gol.` +
+    `<span class="muted">${empata} ${empata === 1 ? 'empate' : 'empates'} · ` +
+    `${pierde} ${pierde === 1 ? 'vez perdió' : 'veces perdió'} · datos hasta ${ultima}</span>`;
+
+  hero.style.display = '';
+  units.style.display = '';
+  mins.style.display = '';
+
+  document.getElementById('ball-host').innerHTML = drawBall(pw, pd, pl);
+  drawUnits(played);
+  drawBeeswarm(played);
+}
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    renderAll();
+  });
+});
+
+document.getElementById('search-box').addEventListener('input', renderAll);
+document.getElementById('refresh-btn').addEventListener('click', fetchMatches);
+
+// ── Tooltip al pasar el cursor (unidades y puntos del beeswarm) ──────────────
+const vizTooltip = document.getElementById('viz-tooltip');
+document.addEventListener('mouseover', e => {
+  const el = e.target.closest && e.target.closest('[data-tip]');
+  if (el) { vizTooltip.textContent = el.getAttribute('data-tip'); vizTooltip.classList.add('show'); }
+});
+document.addEventListener('mouseout', e => {
+  const from = e.target.closest && e.target.closest('[data-tip]');
+  const to = e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('[data-tip]');
+  if (from && from !== to) vizTooltip.classList.remove('show');
+});
+document.addEventListener('mousemove', e => {
+  if (!vizTooltip.classList.contains('show')) return;
+  const pad = 14, r = vizTooltip.getBoundingClientRect();
+  let x = e.clientX + pad, y = e.clientY + pad;
+  if (x + r.width > window.innerWidth) x = e.clientX - r.width - pad;
+  if (y + r.height > window.innerHeight) y = e.clientY - r.height - pad;
+  vizTooltip.style.left = x + 'px';
+  vizTooltip.style.top = y + 'px';
+});
+
+// ── Revelar bloques al hacer scroll ─────────────────────────────────────────
+const revealIO = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('in-view'); revealIO.unobserve(e.target); }
+  });
+}, { threshold: 0, rootMargin: '0px 0px -8% 0px' });
+document.querySelectorAll('.reveal').forEach(el => revealIO.observe(el));
+
+fetchMatches();
+</script>
+</body>
+</html>
