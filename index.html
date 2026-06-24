@@ -4,6 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mundial 2026 — Primer Gol</title>
+
+<!-- ░░ Google Analytics (GA4) · ID de medición: G-QZ6J18JT0N ░░ -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-QZ6J18JT0N"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-QZ6J18JT0N');
+</script>
+<!-- ░░ fin Google Analytics ░░ -->
 <style>
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -98,7 +108,7 @@
     .hs-item.win { border-color: var(--win); } .hs-item.draw { border-color: var(--draw); } .hs-item.loss { border-color: var(--loss); }
     .hs-item b { font-family: Georgia, 'Times New Roman', Times, serif; font-size: 1.45rem; font-weight: 700; }
     .hs-item.win b { color: var(--win); } .hs-item.draw b { color: var(--draw); } .hs-item.loss b { color: var(--loss); }
-    .hs-item span { color: var(--gold); font-weight: 600; font-size: .9rem; }
+    .hs-item span { color: var(--gold); font-weight: 700; font-size: .9rem; margin-right: .4rem; }
     .hs-item em { font-style: normal; color: rgba(255,255,255,.7); font-size: .82rem; margin-left: auto; text-align: right; }
   }
 
@@ -118,7 +128,9 @@
   .swarm-wrap { max-width: 960px; margin: 0 auto; }
   #swarm-host svg { width: 100%; height: auto; display: block; }
   .swarm-axis line { stroke: rgba(255,255,255,0.28); stroke-width: 1; }
-  .swarm-axis text { fill: rgba(255,255,255,0.6); font-family: Georgia, 'Times New Roman', Times, serif; font-size: 11px; }
+  .swarm-axis text { fill: rgba(255,255,255,0.85); font-family: Georgia, 'Times New Roman', Times, serif; font-size: 12px; }
+  .swarm-axis .tick-num { font-weight: 700; }
+  .swarm-axis .mt-label { fill: var(--gold); letter-spacing: .04em; }
   @keyframes swimIn { from { transform: translateX(var(--sx)); } to { transform: translateX(0); } }
   @keyframes swimSweep { 0% { transform: translateX(0); opacity: 0; } 6% { opacity: .5; } 92% { opacity: .5; } 100% { transform: translateX(var(--sweepX, 656px)); opacity: 0; } }
   .swarm-sweep { opacity: 0; }
@@ -230,9 +242,9 @@
     <div class="verdict" id="verdict"></div>
     <div class="hero-ball" id="ball-host"></div>
     <div class="hero-stats">
-      <div class="hs-item win"><b id="stat-gana">—</b><span id="pct-gana"></span><em>ganó quien metió el primer gol</em></div>
-      <div class="hs-item draw"><b id="stat-empate">—</b><span id="pct-empate"></span><em>terminó en empate</em></div>
-      <div class="hs-item loss"><b id="stat-pierde">—</b><span id="pct-pierde"></span><em>perdió quien metió el primer gol</em></div>
+      <div class="hs-item win"><b id="stat-gana">—</b><em><span id="pct-gana"></span>ganó quien metió el primer gol</em></div>
+      <div class="hs-item draw"><b id="stat-empate">—</b><em><span id="pct-empate"></span>terminó en empate</em></div>
+      <div class="hs-item loss"><b id="stat-pierde">—</b><em><span id="pct-pierde"></span>perdió quien metió el primer gol</em></div>
     </div>
   </div>
 </section>
@@ -744,9 +756,14 @@ function drawBeeswarm(played) {
     .filter(m => m.primerGolMinuto != null && m.resultadoPrimerGol)
     .map(m => ({ min: minuteSort(m.primerGolMinuto), r: m.resultadoPrimerGol, m }));
 
-  const W = 720, padL = 32, padR = 32, padB = 42, padTop = 30, baseY = 250, maxMin = 95;
+  // Geometría responsive: en móvil uso un viewBox más angosto para que los
+  // puntos ocupen proporcionalmente más ancho y no se vean diminutos al escalar.
+  const mobile = (typeof window !== 'undefined' ? window.innerWidth : 1200) <= 560;
+  const W = mobile ? 360 : 720;
+  const padL = mobile ? 22 : 32, padR = mobile ? 22 : 32;
+  const padB = 42, padTop = 30, baseY = 250, maxMin = 95;
   const x = v => padL + Math.min(v, maxMin) / maxMin * (W - padL - padR);
-  const rad = 8.5, gap = 2.5;
+  const rad = mobile ? 9 : 8.5, gap = mobile ? 3 : 2.5;
 
   pts.sort((a, b) => a.min - b.min);
   const placed = [];
@@ -766,11 +783,14 @@ function drawBeeswarm(played) {
   const vbH = (baseY + padB) - vbTop;
   const labelY = vbTop + 12, midTop = vbTop + 22;
 
+  const axisFS = mobile ? 14 : 12;   // números del eje
+  const mtFS   = mobile ? 13 : 11.5; // etiqueta "medio tiempo"
+
   let ticks = '';
   [0, 15, 30, 45, 60, 75, 90].forEach(t => {
     const tx = x(t);
     ticks += `<line x1="${tx}" y1="${baseY}" x2="${tx}" y2="${baseY + 6}"/>` +
-             `<text x="${tx}" y="${baseY + 23}" text-anchor="middle">${t}'</text>`;
+             `<text class="tick-num" x="${tx}" y="${baseY + 24}" text-anchor="middle" font-size="${axisFS}">${t}'</text>`;
   });
   const ht = x(45);
   const sweepX = (W - padL - padR).toFixed(0);
@@ -786,7 +806,7 @@ function drawBeeswarm(played) {
     <svg viewBox="0 ${vbTop.toFixed(0)} ${W} ${vbH.toFixed(0)}" xmlns="http://www.w3.org/2000/svg">
       <g class="swarm-axis">
         <line x1="${ht}" y1="${midTop}" x2="${ht}" y2="${baseY}" stroke-dasharray="3 4" stroke-opacity="0.6"/>
-        <text x="${ht}" y="${labelY}" text-anchor="middle">medio tiempo</text>
+        <text class="mt-label" x="${ht}" y="${labelY}" text-anchor="middle" font-size="${mtFS}">medio tiempo</text>
         <line x1="${padL}" y1="${baseY}" x2="${W - padR}" y2="${baseY}"/>
         ${ticks}
       </g>
@@ -861,6 +881,19 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 
 document.getElementById('search-box').addEventListener('input', renderAll);
 document.getElementById('refresh-btn').addEventListener('click', fetchMatches);
+
+// Redibujar el beeswarm solo cuando se cruza el umbral móvil (rotar / redimensionar).
+let wasMobile = window.innerWidth <= 560, resizeT;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeT);
+  resizeT = setTimeout(() => {
+    const isMobile = window.innerWidth <= 560;
+    if (isMobile === wasMobile) return;
+    wasMobile = isMobile;
+    const played = allMatches.filter(m => m.jugado);
+    if (played.length) drawBeeswarm(played);
+  }, 180);
+});
 
 // ── Tooltip al pasar el cursor (unidades y puntos del beeswarm) ──────────────
 const vizTooltip = document.getElementById('viz-tooltip');
