@@ -146,6 +146,13 @@
   .hl { color: var(--gold); }
   .muted { color: var(--text-muted); }
 
+  /* ─── CLASIFICADOS (banderas que saltan) ─── */
+  .flag-jump { display: flex; flex-wrap: wrap; gap: 1.5rem 1.4rem; justify-content: center; max-width: 780px; margin: 0 auto; }
+  .qteam { display: flex; flex-direction: column; align-items: center; gap: .35rem; width: 78px; }
+  .qflag { font-size: 3rem; line-height: 1; display: inline-block; filter: drop-shadow(0 6px 8px rgba(0,0,0,.28)); animation: flagBounce 1.7s ease-in-out infinite; }
+  .qname { font-size: .82rem; font-weight: 600; color: rgba(255,255,255,.85); text-align: center; }
+  @keyframes flagBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-16px); } }
+
   /* ─── EXPLORER ─── */
   .explorer-head { text-align: center; max-width: 640px; margin: 0 auto 1.5rem; }
   .controls { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: center; max-width: 900px; margin: 0 auto 2rem; }
@@ -216,6 +223,7 @@
     .scroll-cue .arrow { animation: none; }
     #minutes-block.in-view .swarm-dot { animation: none; transform: none; }
     #minutes-block.in-view .swarm-sweep { display: none; }
+    .qflag { animation: none; }
   }
 </style>
 </head>
@@ -272,6 +280,18 @@
     </div>
     <div class="swarm-wrap"><div id="swarm-host"></div></div>
     <div class="swarm-caption" id="swarm-caption"></div>
+  </div>
+</section>
+
+<!-- ░░░ CLASIFICADOS A LA SIGUIENTE FASE ░░░ -->
+<section class="full tint reveal" id="qualified-block" style="display:none">
+  <div class="full-inner">
+    <div class="viz-head">
+      <div class="viz-eyebrow">A la siguiente fase</div>
+      <div class="viz-title">Los que ya están adentro</div>
+      <div class="viz-sub" id="qualified-sub"></div>
+    </div>
+    <div class="flag-jump" id="qualified-flags"></div>
   </div>
 </section>
 
@@ -488,6 +508,7 @@ async function fetchMatches() {
     allMatches = transform(data);
     if (!allMatches.length) throw new Error('El JSON no trajo partidos de fase de grupos.');
     renderOverview(allMatches);
+    renderQualified(data);
     renderAll();
   } catch (err) {
     console.error('fetchMatches error:', err);
@@ -824,6 +845,40 @@ function drawBeeswarm(played) {
       `Cuando llegó en los primeros 30', quien lo metió ganó el <span class="hl">${wr(early)}%</span> de las veces` +
       (late.length ? `; después del 30', el <span class="hl">${wr(late)}%</span>.` : '.')
     : '';
+}
+
+// ── Clasificados a la siguiente fase ────────────────────────────────────────
+// Verdad oficial: tomo los equipos REALES que ya aparecen en los partidos de
+// eliminación (los que siguen como placeholder tipo "1F" o "3A/B/C/D/F" aún no
+// están definidos). La lista se llena sola a medida que terminan los grupos.
+function renderQualified(data) {
+  const ms = data.matches || [];
+  const groupTeams = new Set();
+  ms.forEach(m => { if (m.group) { groupTeams.add(m.team1); groupTeams.add(m.team2); } });
+
+  const qualified = new Set();
+  ms.forEach(m => {
+    if (!m.group) {
+      [m.team1, m.team2].forEach(t => { if (groupTeams.has(t)) qualified.add(t); });
+    }
+  });
+
+  const block = document.getElementById('qualified-block');
+  const list = [...qualified].sort((a, b) => teamES(a).localeCompare(teamES(b), 'es'));
+
+  if (!list.length) { block.style.display = 'none'; return; }
+
+  let html = '';
+  list.forEach((t, i) => {
+    const delay = ((i % 8) * 0.13).toFixed(2); // ola: el salto se va escalonando
+    html += `<div class="qteam">` +
+            `<span class="qflag" style="animation-delay:${delay}s">${teamFlag(t)}</span>` +
+            `<span class="qname">${teamES(t)}</span></div>`;
+  });
+  document.getElementById('qualified-flags').innerHTML = html;
+  document.getElementById('qualified-sub').textContent =
+    `${list.length} de 32 equipos ya tienen su cupo asegurado. La lista se completa a medida que terminan los grupos.`;
+  block.style.display = '';
 }
 
 // ── Resumen general: dibuja todo el overview a partir de los datos ──────────
