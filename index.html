@@ -149,7 +149,9 @@
   /* ─── CLASIFICADOS (banderas que saltan) ─── */
   .flag-jump { display: flex; flex-wrap: wrap; gap: 1.5rem 1.4rem; justify-content: center; max-width: 780px; margin: 0 auto; }
   .qteam { display: flex; flex-direction: column; align-items: center; gap: .35rem; width: 78px; }
-  .qflag { font-size: 3rem; line-height: 1; display: inline-block; filter: drop-shadow(0 6px 8px rgba(0,0,0,.28)); animation: flagBounce 1.7s ease-in-out infinite; }
+  .qflag { font-size: 3rem; line-height: 1; display: inline-block; filter: drop-shadow(0 6px 8px rgba(0,0,0,.28)); }
+  /* el salto arranca cuando la sección entra en pantalla; 3 veces y se queda quieta */
+  #qualified-block.in-view .qflag { animation: flagBounce 1.7s ease-in-out 3; }
   .qflag.sq { font-size: 3.5rem; }  /* banderas cuadradas (Suiza, Nepal): más altas para igualar el ancho visual */
   .qname { font-size: .82rem; font-weight: 600; color: rgba(255,255,255,.85); text-align: center; }
   @keyframes flagBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-16px); } }
@@ -224,7 +226,7 @@
     .scroll-cue .arrow { animation: none; }
     #minutes-block.in-view .swarm-dot { animation: none; transform: none; }
     #minutes-block.in-view .swarm-sweep { display: none; }
-    .qflag { animation: none; }
+    #qualified-block.in-view .qflag { animation: none; }
   }
 </style>
 </head>
@@ -761,6 +763,11 @@ function unitTip(m) {
   return `${m.equipoLocal} ${m.golesLocal}-${m.golesVisitante} ${m.equipoVisitante} · ${winner ? 'ganó ' + winner : 'empate'}`;
 }
 
+// Tooltip del beeswarm: igual que el de unidades, pero suma el minuto del primer gol
+function swarmTip(m) {
+  return unitTip(m) + (m.primerGolMinuto != null ? ` · primer gol al minuto ${m.primerGolMinuto}` : '');
+}
+
 function drawUnits(played) {
   const order = { victoria: 0, empate: 1, derrota: 2 };
   const moodOf = r => r === 'victoria' ? 'happy' : r === 'empate' ? 'neutral' : 'sad';
@@ -821,7 +828,7 @@ function drawBeeswarm(played) {
   for (const p of placed) {
     const dur = Math.max(0.25, (p.min / maxMin) * TOTAL).toFixed(2);
     const off = (padL - p.x).toFixed(1); // arranca en la línea de saque
-    dots += `<circle class="swarm-dot" data-tip="${unitTip(p.m).replace(/"/g, '&quot;')}" style="--sx:${off}px;animation-duration:${dur}s" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${rad}" fill="${colorVar(p.r)}" stroke="#0a1628" stroke-opacity="0.5" stroke-width="1"/>`;
+    dots += `<circle class="swarm-dot" data-tip="${swarmTip(p.m).replace(/"/g, '&quot;')}" style="--sx:${off}px;animation-duration:${dur}s" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${rad}" fill="${colorVar(p.r)}" stroke="#0a1628" stroke-opacity="0.5" stroke-width="1"/>`;
   }
 
   document.getElementById('swarm-host').innerHTML = `
@@ -883,10 +890,56 @@ function clinchedTopTwo(data) {
   return clinched;
 }
 
+// ── ¿Quién aseguró estar entre los 8 mejores terceros? ──────────────────────
+// Clasifican los 2 primeros de cada grupo + los 8 mejores terceros (12 grupos →
+// 12 terceros, pasan 8). Un tercero está adentro si es IMPOSIBLE que termine
+// fuera de esos 8: cuento los terceros ya definidos que lo igualan o superan,
+// y sumo (en su contra, peor caso) cada grupo cuyo tercero aún no se conoce.
+// Si ese total es ≤ 7, su cupo de tercero está asegurado.
+function clinchedBestThird(data) {
+  const G = {};
+  (data.matches || []).forEach(m => {
+    if (!m.group) return;
+    (G[m.group] = G[m.group] || { t: {}, ms: [] });
+    [m.team1, m.team2].forEach(t => { G[m.group].t[t] = G[m.group].t[t] || { P: 0, GF: 0, GC: 0, rem: 0 }; });
+    G[m.group].ms.push(m);
+  });
+
+  const thirds = [];     // terceros de grupos COMPLETOS: {team, P, GD, GF}
+  let incompletos = 0;   // grupos cuyo tercero aún no se conoce
+  for (const g in G) {
+    const T = G[g].t;
+    G[g].ms.forEach(m => {
+      const ft = m.score && m.score.ft;
+      if (!ft) { T[m.team1].rem++; T[m.team2].rem++; return; }
+      const [a, b] = ft;
+      T[m.team1].GF += a; T[m.team1].GC += b; T[m.team2].GF += b; T[m.team2].GC += a;
+      if (a > b) T[m.team1].P += 3; else if (b > a) T[m.team2].P += 3; else { T[m.team1].P++; T[m.team2].P++; }
+    });
+    const complete = Object.values(T).every(s => s.rem === 0);
+    if (!complete) { incompletos++; continue; }
+    const rows = Object.entries(T)
+      .map(([team, s]) => ({ team, P: s.P, GD: s.GF - s.GC, GF: s.GF }))
+      .sort((x, y) => (y.P - x.P) || (y.GD - x.GD) || (y.GF - x.GF));
+    if (rows[2]) thirds.push(rows[2]);
+  }
+
+  // u puede terminar sobre t (lo iguala o supera en el orden P → DG → GF)
+  const noEstaDebajo = (u, t) =>
+    !(u.P < t.P || (u.P === t.P && u.GD < t.GD) || (u.P === t.P && u.GD === t.GD && u.GF < t.GF));
+
+  const clinched = new Set();
+  thirds.forEach(t => {
+    const arriba = thirds.filter(u => u !== t && noEstaDebajo(u, t)).length;
+    if (arriba + incompletos <= 7) clinched.add(t.team);
+  });
+  return clinched;
+}
+
 // ── Clasificados a la siguiente fase ────────────────────────────────────────
-// Combino dos fuentes: (1) los equipos REALES que openfootball ya puso en el
-// bracket de eliminación, y (2) los que ya aseguraron matemáticamente el top-2
-// de su grupo. La lista se llena sola a medida que avanza el torneo.
+// Combino tres fuentes: (1) equipos que openfootball ya puso en el bracket,
+// (2) los que aseguraron matemáticamente el top-2 de su grupo, y (3) los que
+// aseguraron estar entre los 8 mejores terceros. Se llena sola con el torneo.
 function renderQualified(data) {
   const ms = data.matches || [];
   const groupTeams = new Set();
@@ -899,6 +952,7 @@ function renderQualified(data) {
     }
   });
   clinchedTopTwo(data).forEach(t => qualified.add(t));
+  clinchedBestThird(data).forEach(t => qualified.add(t));
 
   const block = document.getElementById('qualified-block');
   const list = [...qualified].sort((a, b) => teamES(a).localeCompare(teamES(b), 'es'));
@@ -916,7 +970,7 @@ function renderQualified(data) {
   });
   document.getElementById('qualified-flags').innerHTML = html;
   document.getElementById('qualified-sub').textContent =
-    `${list.length} de 32 equipos ya tienen su cupo asegurado. La lista se completa a medida que terminan los grupos. ¿Cómo lo sabemos? De cada grupo de 4 avanzan 2: un equipo queda adentro cuando, aunque pierda su último partido, a lo más un rival puede alcanzar o superar sus puntos —ese sería el otro que clasifica—; los otros dos ya no le llegan, así que en el peor caso termina 2°, nunca afuera.`;
+    `${list.length} de 32 equipos ya tienen su cupo asegurado. La lista se completa a medida que terminan los grupos. ¿Cómo lo sabemos? De cada grupo de 4 avanzan los 2 primeros, más los 8 mejores terceros. Un equipo aparece solo cuando ya es imposible dejarlo afuera: aunque pierda lo que le queda, ningún resultado pendiente alcanza para quitarle el cupo.`;
   block.style.display = '';
 }
 
