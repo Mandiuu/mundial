@@ -150,6 +150,7 @@
   .flag-jump { display: flex; flex-wrap: wrap; gap: 1.5rem 1.4rem; justify-content: center; max-width: 780px; margin: 0 auto; }
   .qteam { display: flex; flex-direction: column; align-items: center; gap: .35rem; width: 78px; }
   .qflag { font-size: 3rem; line-height: 1; display: inline-block; filter: drop-shadow(0 6px 8px rgba(0,0,0,.28)); animation: flagBounce 1.7s ease-in-out infinite; }
+  .qflag.sq { font-size: 3.5rem; }  /* banderas cuadradas (Suiza, Nepal): más altas para igualar el ancho visual */
   .qname { font-size: .82rem; font-weight: 600; color: rgba(255,255,255,.85); text-align: center; }
   @keyframes flagBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-16px); } }
 
@@ -847,10 +848,45 @@ function drawBeeswarm(played) {
     : '';
 }
 
+// ── ¿Quién aseguró matemáticamente el top-2 de su grupo? ────────────────────
+// Un equipo está adentro si es IMPOSIBLE que lo bajen del 2° puesto: como mucho
+// 1 rival puede alcanzar o superar su mínimo de puntos (peor caso: pierde lo que
+// le queda). Es conservador a propósito: nunca marca un clasificado que no lo sea.
+// Esto cubre los casos en que openfootball aún no rellenó el casillero del bracket.
+function clinchedTopTwo(data) {
+  const G = {};
+  (data.matches || []).forEach(m => {
+    if (!m.group) return;
+    (G[m.group] = G[m.group] || { teams: {}, ms: [] });
+    [m.team1, m.team2].forEach(t => { G[m.group].teams[t] = G[m.group].teams[t] || { pts: 0, rem: 0 }; });
+    G[m.group].ms.push(m);
+  });
+  const clinched = new Set();
+  for (const g in G) {
+    const T = G[g].teams;
+    G[g].ms.forEach(m => {
+      const ft = m.score && m.score.ft;
+      if (!ft) { T[m.team1].rem++; T[m.team2].rem++; return; }
+      const [a, b] = ft;
+      if (a > b) T[m.team1].pts += 3;
+      else if (b > a) T[m.team2].pts += 3;
+      else { T[m.team1].pts++; T[m.team2].pts++; }
+    });
+    const names = Object.keys(T);
+    names.forEach(t => {
+      const tMin = T[t].pts;
+      let threats = 0;
+      names.forEach(u => { if (u !== t && (T[u].pts + 3 * T[u].rem) >= tMin) threats++; });
+      if (threats <= 1) clinched.add(t);
+    });
+  }
+  return clinched;
+}
+
 // ── Clasificados a la siguiente fase ────────────────────────────────────────
-// Verdad oficial: tomo los equipos REALES que ya aparecen en los partidos de
-// eliminación (los que siguen como placeholder tipo "1F" o "3A/B/C/D/F" aún no
-// están definidos). La lista se llena sola a medida que terminan los grupos.
+// Combino dos fuentes: (1) los equipos REALES que openfootball ya puso en el
+// bracket de eliminación, y (2) los que ya aseguraron matemáticamente el top-2
+// de su grupo. La lista se llena sola a medida que avanza el torneo.
 function renderQualified(data) {
   const ms = data.matches || [];
   const groupTeams = new Set();
@@ -862,22 +898,25 @@ function renderQualified(data) {
       [m.team1, m.team2].forEach(t => { if (groupTeams.has(t)) qualified.add(t); });
     }
   });
+  clinchedTopTwo(data).forEach(t => qualified.add(t));
 
   const block = document.getElementById('qualified-block');
   const list = [...qualified].sort((a, b) => teamES(a).localeCompare(teamES(b), 'es'));
 
   if (!list.length) { block.style.display = 'none'; return; }
 
+  const SQUARE = new Set(['Switzerland', 'Nepal']); // banderas cuadradas → compensar tamaño
   let html = '';
   list.forEach((t, i) => {
     const delay = ((i % 8) * 0.13).toFixed(2); // ola: el salto se va escalonando
+    const sq = SQUARE.has(t) ? ' sq' : '';
     html += `<div class="qteam">` +
-            `<span class="qflag" style="animation-delay:${delay}s">${teamFlag(t)}</span>` +
+            `<span class="qflag${sq}" style="animation-delay:${delay}s">${teamFlag(t)}</span>` +
             `<span class="qname">${teamES(t)}</span></div>`;
   });
   document.getElementById('qualified-flags').innerHTML = html;
   document.getElementById('qualified-sub').textContent =
-    `${list.length} de 32 equipos ya tienen su cupo asegurado. La lista se completa a medida que terminan los grupos.`;
+    `${list.length} de 32 equipos ya tienen su cupo asegurado. La lista se completa a medida que terminan los grupos. ¿Cómo lo sabemos? De cada grupo de 4 avanzan 2: un equipo queda adentro cuando, aunque pierda su último partido, a lo más un rival puede alcanzar o superar sus puntos —ese sería el otro que clasifica—; los otros dos ya no le llegan, así que en el peor caso termina 2°, nunca afuera.`;
   block.style.display = '';
 }
 
