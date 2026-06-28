@@ -172,10 +172,15 @@
   .resumen-head { display: flex; align-items: center; gap: .5rem; margin-bottom: 1rem; }
   .resumen-head .ar-emoji { font-size: 1.25rem; }
   .resumen-head .ar-label { font-family: Georgia, 'Times New Roman', Times, serif; font-weight: 700; color: var(--gold); font-size: 1.05rem; }
-  .awards-summary { display: flex; flex-wrap: wrap; gap: 1.3rem 2.4rem; }
-  .awards-summary > div { display: flex; flex-direction: column; }
+  .awards-summary { display: grid; grid-template-columns: repeat(5, 1fr); gap: .8rem; }
+  @media (max-width: 560px) { .awards-summary { grid-template-columns: repeat(2, 1fr); } }
+  .awards-summary > div {
+    aspect-ratio: 1 / 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .35rem; text-align: center;
+    background: linear-gradient(160deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04));
+    border: 1px solid rgba(255,255,255,0.16); border-radius: 14px; padding: .7rem .5rem;
+  }
   .awards-summary b { font-family: Georgia, 'Times New Roman', Times, serif; font-size: 2rem; font-weight: 700; color: var(--gold); line-height: 1; }
-  .awards-summary em { font-style: normal; font-size: .82rem; color: rgba(255,255,255,.7); margin-top: .3rem; }
+  .awards-summary em { font-style: normal; font-size: .78rem; line-height: 1.25; color: rgba(255,255,255,.72); }
 
   /* ─── EXPLORER ─── */
   .explorer-head { text-align: center; max-width: 640px; margin: 0 auto 1.5rem; }
@@ -257,8 +262,8 @@
 <!-- ░░░ PORTADA ░░░ -->
 <header class="cover">
   <div class="eyebrow">Mundial 2026</div>
-  <h1>Datos que nadie pidió<span class="yr">sobre el mundial</span></h1>
-  <p class="q">En el fútbol nada es tan predecible, pero siempre es entretenido ver las estadísticas.</p>
+  <h1>¿Gana el que mete<span class="yr">el primer gol?</span></h1>
+  <p class="q">En el fútbol nada es tan predecible, pero siempre es entretenido ver los datos.</p>
   <div class="scroll-cue">Desliza<span class="arrow">↓</span></div>
 </header>
 
