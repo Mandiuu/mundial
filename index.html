@@ -156,6 +156,18 @@
   .qname { font-size: .82rem; font-weight: 600; color: rgba(255,255,255,.85); text-align: center; }
   @keyframes flagBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-16px); } }
 
+  /* ─── PREMIOS DE LA FASE DE GRUPOS (lista de frases) ─── */
+  .awards-list { max-width: 780px; margin: 0 auto; }
+  .award-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: .1rem .5rem; padding: .95rem 0; border-bottom: 1px solid rgba(255,255,255,0.12); line-height: 1.45; font-size: 1.08rem; }
+  .award-row:first-child { padding-top: 0; }
+  .award-row:last-child { border-bottom: none; }
+  .ar-emoji { font-size: 1.25rem; margin-right: .15rem; }
+  .ar-label { font-family: Georgia, 'Times New Roman', Times, serif; font-weight: 700; color: var(--gold); }
+  .ar-win { font-family: Georgia, 'Times New Roman', Times, serif; font-weight: 700; color: #fff; }
+  .ar-stat { color: rgba(255,255,255,.6); }
+  .award-row.ar-resumen { margin-top: .5rem; padding-top: 1.1rem; border-top: 1px solid rgba(255,255,255,0.2); border-bottom: none; }
+  .award-row.ar-resumen .ar-win { font-weight: 400; color: rgba(255,255,255,.8); }
+
   /* ─── EXPLORER ─── */
   .explorer-head { text-align: center; max-width: 640px; margin: 0 auto 1.5rem; }
   .controls { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: center; max-width: 900px; margin: 0 auto 2rem; }
@@ -286,8 +298,20 @@
   </div>
 </section>
 
+<!-- ░░░ PREMIOS DE LA FASE DE GRUPOS ░░░ -->
+<section class="full tint reveal" id="awards-block" style="display:none">
+  <div class="full-inner">
+    <div class="viz-head">
+      <div class="viz-eyebrow">Cierre de la primera fase</div>
+      <div class="viz-title">Los premios del grupo</div>
+      <div class="viz-sub">Lo más destacado de la fase de grupos, según los datos. Se actualiza con cada partido.</div>
+    </div>
+    <div class="awards-list" id="awards-grid"></div>
+  </div>
+</section>
+
 <!-- ░░░ CLASIFICADOS A LA SIGUIENTE FASE ░░░ -->
-<section class="full tint reveal" id="qualified-block" style="display:none">
+<section class="full reveal" id="qualified-block" style="display:none">
   <div class="full-inner">
     <div class="viz-head">
       <div class="viz-eyebrow">A la siguiente fase</div>
@@ -512,6 +536,7 @@ async function fetchMatches() {
     if (!allMatches.length) throw new Error('El JSON no trajo partidos de fase de grupos.');
     renderOverview(allMatches);
     renderQualified(data);
+    renderAwards(data);
     renderAll();
   } catch (err) {
     console.error('fetchMatches error:', err);
@@ -971,6 +996,95 @@ function renderQualified(data) {
   document.getElementById('qualified-flags').innerHTML = html;
   document.getElementById('qualified-sub').textContent =
     `${list.length} de 32 equipos ya tienen su cupo asegurado. La lista se completa a medida que terminan los grupos. ¿Cómo lo sabemos? De cada grupo de 4 avanzan los 2 primeros, más los 8 mejores terceros. Un equipo aparece solo cuando ya es imposible dejarlo afuera: aunque pierda lo que le queda, ningún resultado pendiente alcanza para quitarle el cupo.`;
+  block.style.display = '';
+}
+
+// ── Premios de la fase de grupos: superlativos calculados en vivo ───────────
+function renderAwards(data) {
+  const matches = (data.matches || []).filter(m => m.group && m.score && m.score.ft);
+  const block = document.getElementById('awards-block');
+  if (!matches.length) { block.style.display = 'none'; return; }
+
+  const gf = {}, ga = {}, scorers = {}, scorerTeam = {}, hat = {};
+  let pens = 0, ogs = 0, total = 0, topMatch = null, topMargin = null;
+  const allGoals = [];
+
+  matches.forEach(m => {
+    const [a, b] = m.score.ft, t1 = m.team1, t2 = m.team2;
+    gf[t1] = (gf[t1] || 0) + a; ga[t1] = (ga[t1] || 0) + b;
+    gf[t2] = (gf[t2] || 0) + b; ga[t2] = (ga[t2] || 0) + a;
+    total += a + b;
+    if (!topMatch || a + b > topMatch.score.ft[0] + topMatch.score.ft[1]) topMatch = m;
+    if (!topMargin || Math.abs(a - b) > Math.abs(topMargin.score.ft[0] - topMargin.score.ft[1])) topMargin = m;
+    const mk = `${t1}|${t2}|${m.date}`;
+    [[m.goals1 || [], t1], [m.goals2 || [], t2]].forEach(([arr, team]) => {
+      arr.forEach(g => {
+        if (g.owngoal) ogs++;
+        if (g.penalty) pens++;
+        if (!g.owngoal) {
+          scorers[g.name] = (scorers[g.name] || 0) + 1; scorerTeam[g.name] = team;
+          (hat[mk] = hat[mk] || {})[g.name] = (hat[mk][g.name] || 0) + 1;
+        }
+        allGoals.push({ min: g.minute, name: g.name, team, og: !!g.owngoal });
+      });
+    });
+  });
+
+  const namesES = arr => arr.map(teamES).join(' · ');
+  const pick = (obj, val) => Object.keys(obj).filter(k => obj[k] === val);
+  const vals = obj => Object.values(obj);
+
+  // goleadores (empates incluidos)
+  const scEntries = Object.entries(scorers).sort((x, y) => y[1] - x[1]);
+  const topG = scEntries.length ? scEntries[0][1] : 0;
+  const topScorers = scEntries.filter(([, c]) => c === topG).map(([n]) => n);
+
+  // hat-tricks (jugadores únicos con 3+ en un mismo partido)
+  const hatPlayers = [];
+  Object.values(hat).forEach(pl => Object.entries(pl).forEach(([p, c]) => { if (c >= 3 && !hatPlayers.includes(p)) hatPlayers.push(p); }));
+
+  // equipos (empates incluidos)
+  const maxGf = Math.max(...vals(gf)), minGf = Math.min(...vals(gf));
+  const minGa = Math.min(...vals(ga)), maxGa = Math.max(...vals(ga));
+
+  // minutos extremos (excluyo autogoles: ahí el goleador no es del equipo acreditado)
+  const toMin = v => { const s = String(v); if (s.includes('+')) { const [p, q] = s.split('+'); return (+p || 0) + (+q || 0) / 100; } return +s || 0; };
+  const realGoals = allGoals.filter(g => !g.og);
+  let early = realGoals[0], late = realGoals[0];
+  realGoals.forEach(g => { if (toMin(g.min) < toMin(early.min)) early = g; if (toMin(g.min) > toMin(late.min)) late = g; });
+
+  const score = m => `${teamES(m.team1)} ${m.score.ft[0]}-${m.score.ft[1]} ${teamES(m.team2)}`;
+  const avg = (total / matches.length).toFixed(2).replace('.', ',');
+  const plural = (n, sing, plur) => `${n} ${n === 1 ? sing : plur}`;
+  const playerC = (name, team) => `${name} (${teamES(team)})`; // jugador con su país
+
+  const cards = [
+    { e: '⚽', t: 'Goleador del torneo', s: topScorers.map(n => playerC(n, scorerTeam[n])).join(' · '), stat: plural(topG, 'gol', 'goles') },
+    { e: '🎩', t: 'Hat-tricks', s: hatPlayers.length ? hatPlayers.map(n => playerC(n, scorerTeam[n])).join(' · ') : 'Todavía ninguno', stat: hatPlayers.length ? 'un triplete cada uno' : '' },
+    { e: '🔥', t: 'Ataque más letal', s: namesES(pick(gf, maxGf)), stat: `${maxGf} goles a favor` },
+    { e: '🧊', t: 'Ataque más tímido', s: namesES(pick(gf, minGf)), stat: `${plural(minGf, 'gol', 'goles')} a favor` },
+    { e: '🧱', t: 'La muralla', s: namesES(pick(ga, minGa)), stat: `${minGa} goles en contra` },
+    { e: '💥', t: 'El partidazo', s: score(topMatch), stat: `${topMatch.score.ft[0] + topMatch.score.ft[1]} goles` },
+    { e: '💪', t: 'La goleada', s: score(topMargin), stat: `+${Math.abs(topMargin.score.ft[0] - topMargin.score.ft[1])} de diferencia` },
+    { e: '⏱️', t: 'El más madrugador', s: early ? playerC(early.name, early.team) : '—', stat: early ? `al minuto ${early.min}` : '' },
+    { e: '⏳', t: 'El más agónico', s: late ? playerC(late.name, late.team) : '—', stat: late ? `al minuto ${late.min}` : '' },
+  ];
+
+  let out = cards.map(c => `
+    <div class="award-row">
+      <span class="ar-emoji">${c.e}</span>
+      <span class="ar-label">${c.t}:</span>
+      <span class="ar-win">${c.s}</span>${c.stat ? `<span class="ar-stat">— ${c.stat}</span>` : ''}
+    </div>`).join('');
+
+  out += `
+    <div class="award-row ar-resumen">
+      <span class="ar-emoji">📊</span>
+      <span class="ar-label">Resumen:</span>
+      <span class="ar-win">${total} goles en ${matches.length} partidos · ${avg} por partido · ${plural(pens, 'penal', 'penales')} · ${plural(ogs, 'autogol', 'autogoles')}</span>
+    </div>`;
+
+  document.getElementById('awards-grid').innerHTML = out;
   block.style.display = '';
 }
 
