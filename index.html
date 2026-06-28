@@ -175,12 +175,12 @@
   .awards-summary { display: grid; grid-template-columns: repeat(5, 1fr); gap: .8rem; }
   @media (max-width: 560px) { .awards-summary { grid-template-columns: repeat(2, 1fr); } }
   .awards-summary > div {
-    aspect-ratio: 1 / 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .35rem; text-align: center;
+    aspect-ratio: 1 / 1; display: grid; grid-template-rows: 1fr 1fr; justify-items: center; text-align: center;
     background: linear-gradient(160deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04));
     border: 1px solid rgba(255,255,255,0.16); border-radius: 14px; padding: .7rem .5rem;
   }
-  .awards-summary b { font-family: Georgia, 'Times New Roman', Times, serif; font-size: 2rem; font-weight: 700; color: var(--gold); line-height: 1; }
-  .awards-summary em { font-style: normal; font-size: .78rem; line-height: 1.25; color: rgba(255,255,255,.72); }
+  .awards-summary b { align-self: end; font-family: Georgia, 'Times New Roman', Times, serif; font-size: 2rem; font-weight: 700; color: var(--gold); line-height: 1; }
+  .awards-summary em { align-self: start; margin-top: .4rem; font-style: normal; font-size: 1.1rem; line-height: 1.25; color: rgba(255,255,255,.82); }
 
   /* ─── EXPLORER ─── */
   .explorer-head { text-align: center; max-width: 640px; margin: 0 auto 1.5rem; }
@@ -1079,7 +1079,6 @@ function renderAwards(data) {
     { e: '🧊', t: 'Ataque más tímido', s: namesES(pick(gf, minGf)), stat: `${plural(minGf, 'gol', 'goles')} a favor` },
     { e: '🧱', t: 'La muralla', s: namesES(pick(ga, minGa)), stat: `${minGa} goles en contra` },
     { e: '💥', t: 'El partidazo', s: score(topMatch), stat: `${topMatch.score.ft[0] + topMatch.score.ft[1]} goles` },
-    { e: '💪', t: 'La goleada', s: score(topMargin), stat: `+${Math.abs(topMargin.score.ft[0] - topMargin.score.ft[1])} de diferencia` },
     { e: '⏱️', t: 'El más madrugador', s: early ? playerC(early.name, early.team) : '—', stat: early ? `al minuto ${early.min}` : '' },
     { e: '⏳', t: 'El más agónico', s: late ? playerC(late.name, late.team) : '—', stat: late ? `al minuto ${late.min}` : '' },
   ];
