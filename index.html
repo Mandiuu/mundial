@@ -203,9 +203,17 @@
 
   /* cards */
   #main-content { max-width: 1080px; margin: 0 auto; }
-  .group-section { margin-bottom: 2.4rem; }
-  .group-header { display: flex; align-items: center; gap: .6rem; font-family: Georgia, 'Times New Roman', Times, serif; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; font-size: 1.2rem; margin-bottom: 1rem; }
-  .group-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--gold); }
+  .group-section { margin-bottom: 1.5rem; }
+  .group-section > summary { list-style: none; cursor: pointer; user-select: none; }
+  .group-section > summary::-webkit-details-marker { display: none; }
+  .group-header { display: flex; align-items: center; gap: .6rem; font-family: Georgia, 'Times New Roman', Times, serif; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; font-size: 1.2rem; }
+  .group-section[open] > summary { margin-bottom: 1rem; }
+  .group-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--gold); flex-shrink: 0; }
+  .gh-count { font-size: .8rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: rgba(255,255,255,.5); }
+  .gh-chev { margin-left: auto; font-size: .85rem; color: rgba(255,255,255,.45); transition: transform .2s ease; }
+  .group-section[open] .gh-chev { transform: rotate(90deg); }
+  .group-header:hover .gh-chev, .group-header:hover .gh-count { color: var(--gold); }
+  .desempate { color: var(--draw); font-weight: 600; }
   .match-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .9rem; margin-bottom: 1rem; }
   @media (max-width: 760px) { .match-grid { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 480px) { .match-grid { grid-template-columns: 1fr; } }
@@ -473,18 +481,41 @@ function firstGoal(match) {
   return goals[0];
 }
 
+// Rondas de eliminación: nombre en español y orden de aparición
+const RONDA_ES = {
+  'Round of 32': 'Dieciseisavos de final',
+  'Round of 16': 'Octavos de final',
+  'Quarter-final': 'Cuartos de final',
+  'Semi-final': 'Semifinales',
+  'Match for third place': 'Tercer lugar',
+  'Final': 'Final',
+};
+const RONDA_ORDEN = {
+  'Dieciseisavos de final': 0, 'Octavos de final': 1, 'Cuartos de final': 2,
+  'Semifinales': 3, 'Tercer lugar': 4, 'Final': 5,
+};
+
 // ── Transformación: JSON de openfootball → filas que pinta el front ──────────
 function transform(data) {
-  const rows = [];
-  for (const mt of (data.matches || [])) {
-    // Solo fase de grupos: las eliminatorias aún tienen placeholders (1A, 2B…).
-    if (!mt.group) continue;
+  const all = data.matches || [];
+  // Equipos "reales" (los que jugaron la fase de grupos). Sirve para descartar
+  // los cruces de eliminación que aún tienen placeholders (1A, 3B/C/D…).
+  const realTeams = new Set();
+  all.forEach(mt => { if (mt.group) { realTeams.add(mt.team1); realTeams.add(mt.team2); } });
 
-    const grupo  = (mt.group || '').replace(/group/i, '').trim();
+  const rows = [];
+  for (const mt of all) {
+    const esKO = !mt.group;
+    // En eliminación, sólo incluimos cruces con ambos equipos ya definidos.
+    if (esKO && !(realTeams.has(mt.team1) && realTeams.has(mt.team2))) continue;
+
     const jugado = !!(mt.score && mt.score.ft);
 
     const row = {
-      grupo,
+      esEliminacion: esKO,
+      grupo: esKO ? null : (mt.group || '').replace(/group/i, '').trim(),
+      ronda: esKO ? (RONDA_ES[mt.round] || mt.round) : null,
+      desempate: esKO ? (mt.score && mt.score.p ? 'Penales' : (mt.score && mt.score.et ? 'Prórroga' : null)) : null,
       _date: mt.date,
       fecha: fmtFecha(mt.date),
       equipoLocal:     teamES(mt.team1),
@@ -501,6 +532,8 @@ function transform(data) {
     };
 
     if (jugado) {
+      // El resultado del primer gol se mide en los 90' (igual que en grupos);
+      // la prórroga/penales se marca aparte con la etiqueta "desempate".
       const [s1, s2] = mt.score.ft;
       const winner = s1 > s2 ? mt.team1 : (s2 > s1 ? mt.team2 : null);
       const fg = firstGoal(mt);
@@ -524,7 +557,7 @@ function transform(data) {
 
   // Jornada (1, 2, 3) por grupo: según el orden de las fechas dentro del grupo.
   const byGroup = {};
-  rows.forEach(r => { (byGroup[r.grupo] = byGroup[r.grupo] || []).push(r); });
+  rows.forEach(r => { if (!r.esEliminacion) (byGroup[r.grupo] = byGroup[r.grupo] || []).push(r); });
   for (const g in byGroup) {
     const dates = [...new Set(byGroup[g].map(r => r._date))].sort();
     byGroup[g].forEach(r => { r.jornada = dates.indexOf(r._date) + 1; });
@@ -551,7 +584,7 @@ async function fetchMatches() {
     const data = await res.json();
     allMatches = transform(data);
     if (!allMatches.length) throw new Error('El JSON no trajo partidos de fase de grupos.');
-    renderOverview(allMatches);
+    renderOverview(allMatches.filter(m => !m.esEliminacion));
     renderQualified(data);
     renderAwards(data);
     renderAll();
@@ -590,22 +623,31 @@ function renderAll() {
     return;
   }
 
-  // Agrupar por grupo (una grilla por grupo, ordenada por jornada y fecha)
-  const byGroup = {};
-  for (const m of filtered) {
-    const g = m.grupo || 'Sin grupo';
-    (byGroup[g] = byGroup[g] || []).push(m);
-  }
+  // Cada bloque es un <details> plegable
+  const isFiltering = !!search || currentFilter !== 'all';
+  const section = (title, matches, open, sortFn) => {
+    matches.sort(sortFn);
+    return `<details class="group-section"${open ? ' open' : ''}>
+      <summary class="group-header"><span class="group-dot"></span><span>${title}</span><span class="gh-count">${matches.length}</span><span class="gh-chev">▸</span></summary>
+      <div class="match-grid">${matches.map(renderCard).join('')}</div>
+    </details>`;
+  };
 
   let html = '';
-  for (const grupo of Object.keys(byGroup).sort()) {
-    const matches = byGroup[grupo].sort((a, b) => (a.jornada - b.jornada) || a._date.localeCompare(b._date));
-    html += `<div class="group-section">
-      <div class="group-header"><div class="group-dot"></div>Grupo ${grupo}</div>
-      <div class="match-grid">`;
-    for (const m of matches) html += renderCard(m);
-    html += `</div></div>`;
-  }
+
+  // 1) Eliminación primero, por ronda (abierta)
+  const byRound = {};
+  filtered.filter(m => m.esEliminacion).forEach(m => { (byRound[m.ronda] = byRound[m.ronda] || []).push(m); });
+  Object.keys(byRound)
+    .sort((a, b) => (RONDA_ORDEN[a] ?? 99) - (RONDA_ORDEN[b] ?? 99))
+    .forEach(r => { html += section(r, byRound[r], true, (a, b) => a._date.localeCompare(b._date)); });
+
+  // 2) Grupos después (plegados, salvo que haya filtro o búsqueda activa)
+  const byGroup = {};
+  filtered.filter(m => !m.esEliminacion).forEach(m => { const g = m.grupo || 'Sin grupo'; (byGroup[g] = byGroup[g] || []).push(m); });
+  Object.keys(byGroup).sort()
+    .forEach(g => { html += section('Grupo ' + g, byGroup[g], isFiltering, (a, b) => (a.jornada - b.jornada) || a._date.localeCompare(b._date)); });
+
   document.getElementById('main-content').innerHTML = html;
 }
 
@@ -670,10 +712,14 @@ function renderCard(m) {
       </div>`;
   }
 
+  const metaLeft = m.esEliminacion
+    ? (m.desempate ? `<span class="desempate">${m.desempate}</span>` : '<span></span>')
+    : `<span class="jornada">J${m.jornada}</span>`;
+
   return `
   <div class="match-card ${cardClass}">
     <div class="match-meta">
-      <span class="jornada">J${m.jornada}</span>
+      ${metaLeft}
       <span>${m.fecha}</span>
     </div>
     ${teams}
@@ -1205,7 +1251,7 @@ window.addEventListener('resize', () => {
     const isMobile = window.innerWidth <= 560;
     if (isMobile === wasMobile) return;
     wasMobile = isMobile;
-    const played = allMatches.filter(m => m.jugado);
+    const played = allMatches.filter(m => m.jugado && !m.esEliminacion);
     if (played.length) drawBeeswarm(played);
   }, 180);
 });
