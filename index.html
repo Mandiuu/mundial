@@ -146,15 +146,18 @@
   .hl { color: var(--gold); }
   .muted { color: var(--text-muted); }
 
-  /* ─── CLASIFICADOS (banderas que saltan) ─── */
-  .flag-jump { display: flex; flex-wrap: wrap; gap: 1.5rem 1.4rem; justify-content: center; max-width: 780px; margin: 0 auto; }
-  .qteam { display: flex; flex-direction: column; align-items: center; gap: .35rem; width: 78px; }
-  .qflag { font-size: 3rem; line-height: 1; display: inline-block; filter: drop-shadow(0 6px 8px rgba(0,0,0,.28)); }
-  /* el salto arranca cuando la sección entra en pantalla; 3 veces y se queda quieta */
-  #qualified-block.in-view .qflag { animation: flagBounce 1.7s ease-in-out 3; }
-  .qflag.sq { font-size: 3.5rem; }  /* banderas cuadradas (Suiza, Nepal): más altas para igualar el ancho visual */
-  .qname { font-size: .82rem; font-weight: 600; color: rgba(255,255,255,.85); text-align: center; }
-  @keyframes flagBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-16px); } }
+  /* ─── ¿QUIÉN SIGUE EN CARRERA? ─── */
+  .flag-jump { display: flex; flex-wrap: wrap; gap: 1.1rem 1rem; justify-content: center; max-width: 760px; margin: 0 auto; }
+  .qteam { display: flex; flex-direction: column; align-items: center; gap: .3rem; width: 64px; }
+  .qflag { font-size: 2.3rem; line-height: 1; display: inline-block; filter: drop-shadow(0 5px 7px rgba(0,0,0,.28)); }
+  .qflag.sq { font-size: 2.7rem; }  /* banderas cuadradas (Suiza, Nepal): más altas para igualar el ancho visual */
+  .qname { font-size: .74rem; font-weight: 600; color: rgba(255,255,255,.85); text-align: center; line-height: 1.2; }
+  /* sólo los que siguen vivos saltan, al entrar en pantalla, 3 veces y se quedan quietos */
+  #qualified-block.in-view .qteam.in .qflag { animation: flagBounce 1.7s ease-in-out 3; }
+  @keyframes flagBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+  /* eliminados: bandera en blanco y negro, en su lugar */
+  .qteam.out .qflag { filter: grayscale(1) brightness(.9); opacity: .5; }
+  .qteam.out .qname { color: rgba(255,255,255,.4); }
 
   /* ─── PREMIOS DE LA FASE DE GRUPOS (lista de frases) ─── */
   .awards-list { max-width: 780px; margin: 0 auto; }
@@ -252,7 +255,7 @@
     .scroll-cue .arrow { animation: none; }
     #minutes-block.in-view .swarm-dot { animation: none; transform: none; }
     #minutes-block.in-view .swarm-sweep { display: none; }
-    #qualified-block.in-view .qflag { animation: none; }
+    #qualified-block.in-view .qteam.in .qflag { animation: none; }
   }
 </style>
 </head>
@@ -324,12 +327,12 @@
   </div>
 </section>
 
-<!-- ░░░ CLASIFICADOS A LA SIGUIENTE FASE ░░░ -->
+<!-- ░░░ ¿QUIÉN SIGUE EN CARRERA? ░░░ -->
 <section class="full reveal" id="qualified-block" style="display:none">
   <div class="full-inner">
     <div class="viz-head">
-      <div class="viz-eyebrow">A la siguiente fase</div>
-      <div class="viz-title">Los que ya están adentro</div>
+      <div class="viz-eyebrow">Fase de eliminación</div>
+      <div class="viz-title">¿Quién sigue en carrera?</div>
       <div class="viz-sub" id="qualified-sub"></div>
     </div>
     <div class="flag-jump" id="qualified-flags"></div>
@@ -979,37 +982,69 @@ function clinchedBestThird(data) {
 // Combino tres fuentes: (1) equipos que openfootball ya puso en el bracket,
 // (2) los que aseguraron matemáticamente el top-2 de su grupo, y (3) los que
 // aseguraron estar entre los 8 mejores terceros. Se llena sola con el torneo.
+// Los 32 de la eliminación, calculados desde las posiciones finales de los grupos
+function qualifiedTeams(data) {
+  const ms = data.matches || [];
+  const groups = {};
+  ms.forEach(m => {
+    if (!m.group) return;
+    const ft = m.score && m.score.ft; if (!ft) return;
+    const G = groups[m.group] || (groups[m.group] = {});
+    const T1 = G[m.team1] || (G[m.team1] = { pts: 0, gf: 0, ga: 0 });
+    const T2 = G[m.team2] || (G[m.team2] = { pts: 0, gf: 0, ga: 0 });
+    const a = ft[0], b = ft[1];
+    T1.gf += a; T1.ga += b; T2.gf += b; T2.ga += a;
+    if (a > b) T1.pts += 3; else if (b > a) T2.pts += 3; else { T1.pts++; T2.pts++; }
+  });
+  const rankArr = obj => Object.entries(obj).map(([t, s]) => ({ t, ...s }))
+    .sort((x, y) => y.pts - x.pts || (y.gf - y.ga) - (x.gf - x.ga) || y.gf - x.gf);
+  const direct = [], thirds = [];
+  Object.keys(groups).forEach(g => {
+    const r = rankArr(groups[g]);
+    if (r[0]) direct.push(r[0].t);
+    if (r[1]) direct.push(r[1].t);
+    if (r[2]) thirds.push(r[2]);
+  });
+  thirds.sort((x, y) => y.pts - x.pts || (y.gf - y.ga) - (x.gf - x.ga) || y.gf - x.gf);
+  return [...direct, ...thirds.slice(0, 8).map(o => o.t)];
+}
+
+// Perdedor de un partido de eliminación (queda fuera). Maneja prórroga (et) y penales (p).
+function koLoser(m) {
+  const sc = m.score || {}; const ft = sc.ft; if (!ft) return null;
+  let a = ft[0], b = ft[1];
+  if (a === b && sc.et) { a = sc.et[0]; b = sc.et[1]; }
+  if (a === b && sc.p)  { a = sc.p[0];  b = sc.p[1];  }
+  if (a === b) return null;
+  return a > b ? m.team2 : m.team1;
+}
+
 function renderQualified(data) {
   const ms = data.matches || [];
-  const groupTeams = new Set();
-  ms.forEach(m => { if (m.group) { groupTeams.add(m.team1); groupTeams.add(m.team2); } });
-
-  const qualified = new Set();
-  ms.forEach(m => {
-    if (!m.group) {
-      [m.team1, m.team2].forEach(t => { if (groupTeams.has(t)) qualified.add(t); });
-    }
-  });
-  clinchedTopTwo(data).forEach(t => qualified.add(t));
-  clinchedBestThird(data).forEach(t => qualified.add(t));
-
+  const bracket = qualifiedTeams(data);
   const block = document.getElementById('qualified-block');
-  const list = [...qualified].sort((a, b) => teamES(a).localeCompare(teamES(b), 'es'));
+  if (bracket.length < 2) { block.style.display = 'none'; return; }
 
-  if (!list.length) { block.style.display = 'none'; return; }
+  const out = new Set();
+  ms.forEach(m => { if (!m.group) { const l = koLoser(m); if (l) out.add(l); } });
+
+  const list = [...bracket].sort((a, b) => teamES(a).localeCompare(teamES(b), 'es'));
+  const aliveCount = list.filter(t => !out.has(t)).length;
 
   const SQUARE = new Set(['Switzerland', 'Nepal']); // banderas cuadradas → compensar tamaño
-  let html = '';
-  list.forEach((t, i) => {
-    const delay = ((i % 8) * 0.13).toFixed(2); // ola: el salto se va escalonando
+  const html = list.map((t, i) => {
     const sq = SQUARE.has(t) ? ' sq' : '';
-    html += `<div class="qteam">` +
-            `<span class="qflag${sq}" style="animation-delay:${delay}s">${teamFlag(t)}</span>` +
-            `<span class="qname">${teamES(t)}</span></div>`;
-  });
+    const cls = out.has(t) ? 'out' : 'in';
+    const delay = ((i % 9) * 0.1).toFixed(2); // ola: el salto se va escalonando
+    return `<div class="qteam ${cls}">` +
+           `<span class="qflag${sq}" style="animation-delay:${delay}s">${teamFlag(t)}</span>` +
+           `<span class="qname">${teamES(t)}</span></div>`;
+  }).join('');
   document.getElementById('qualified-flags').innerHTML = html;
+
   document.getElementById('qualified-sub').textContent =
-    `${list.length} de 32 equipos ya tienen su cupo asegurado. La lista se completa a medida que terminan los grupos. ¿Cómo lo sabemos? De cada grupo de 4 avanzan los 2 primeros, más los 8 mejores terceros. Un equipo aparece solo cuando ya es imposible dejarlo afuera: aunque pierda lo que le queda, ningún resultado pendiente alcanza para quitarle el cupo.`;
+    `De los ${bracket.length} que llegaron a la fase de eliminación, ${aliveCount} siguen en carrera. ` +
+    `Cada cruce es a muerte súbita: el que pierde queda fuera y su bandera se apaga.`;
   block.style.display = '';
 }
 
