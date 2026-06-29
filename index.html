@@ -143,6 +143,14 @@
     background: rgba(255,255,255,0.09); border-radius: 0 8px 8px 0;
   }
   .swarm-caption .hl { color: var(--gold); font-weight: 700; }
+  /* mini buscador de país */
+  .swarm-filter { display: flex; justify-content: center; align-items: center; gap: .5rem; flex-wrap: wrap; max-width: 700px; margin: .2rem auto 1.3rem; }
+  .swarm-filter label { font-size: .9rem; color: rgba(255,255,255,.7); }
+  .swarm-filter input { background: var(--surface); border: 1px solid var(--line); border-radius: 999px; color: #fff; padding: .5rem 1.05rem; font-size: .95rem; font-family: inherit; min-width: 230px; outline: none; transition: border-color .15s ease; }
+  .swarm-filter input:focus { border-color: var(--gold); }
+  .swarm-filter input::placeholder { color: rgba(255,255,255,.42); }
+  .swarm-clear { background: transparent; border: 1px solid var(--line); border-radius: 999px; color: rgba(255,255,255,.7); padding: .45rem .9rem; font-size: .85rem; cursor: pointer; font-family: inherit; transition: all .15s ease; }
+  .swarm-clear:hover { border-color: var(--gold); color: var(--gold); }
   .hl { color: var(--gold); }
   .muted { color: var(--text-muted); }
 
@@ -318,6 +326,12 @@
       <div class="viz-title">El minuto del primer gol y lo que pasó después</div>
       <div class="viz-sub">Cada punto es un partido, ubicado en el minuto del primer gol y coloreado por el resultado de quien lo metió. Si los rojos se juntan a la derecha, abrir tarde sería más frágil.</div>
     </div>
+    <div class="swarm-filter">
+      <label for="swarm-country">Filtrar por país:</label>
+      <input type="text" id="swarm-country" list="swarm-countries" placeholder="Escribe un país…" autocomplete="off" />
+      <datalist id="swarm-countries"></datalist>
+      <button type="button" id="swarm-clear" class="swarm-clear" style="display:none">✕ ver todos</button>
+    </div>
     <div class="swarm-wrap"><div id="swarm-host"></div></div>
     <div class="swarm-caption" id="swarm-caption"></div>
   </div>
@@ -397,6 +411,8 @@ const OPENFOOTBALL_URL =
 
 let allMatches = [];
 let currentFilter = 'all';
+let swarmPlayed = [];      // partidos jugados que alimentan el beeswarm
+let swarmCountry = null;   // país seleccionado en el filtro (o null = todos)
 
 // ── Mapa de los 48 equipos: nombre inglés (openfootball) → español + bandera ──
 const TEAMS = {
@@ -943,6 +959,31 @@ function drawBeeswarm(played) {
     : '';
 }
 
+// Llena el autocompletado con los países que metieron algún primer gol
+function populateSwarmCountries(played) {
+  const dl = document.getElementById('swarm-countries');
+  if (!dl) return;
+  const countries = [...new Set(played.map(m => m.primerGolEquipo).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'es'));
+  dl.innerHTML = countries.map(c => `<option value="${c}"></option>`).join('');
+}
+
+// Redibuja el beeswarm respetando el filtro de país
+function redrawSwarm() {
+  const data = swarmCountry
+    ? swarmPlayed.filter(m => m.primerGolEquipo === swarmCountry)
+    : swarmPlayed;
+  drawBeeswarm(data);
+  const clearBtn = document.getElementById('swarm-clear');
+  if (clearBtn) clearBtn.style.display = swarmCountry ? '' : 'none';
+  if (swarmCountry) {
+    const cap = document.getElementById('swarm-caption');
+    const n = data.filter(m => m.primerGolMinuto != null && m.resultadoPrimerGol).length;
+    cap.innerHTML = `<span class="hl">${swarmCountry}</span> metió el primer gol en ` +
+      `${n} ${n === 1 ? 'partido' : 'partidos'}. ` + cap.innerHTML;
+  }
+}
+
 // ── ¿Quién aseguró matemáticamente el top-2 de su grupo? ────────────────────
 // Un equipo está adentro si es IMPOSIBLE que lo bajen del 2° puesto: como mucho
 // 1 rival puede alcanzar o superar su mínimo de puntos (peor caso: pierde lo que
@@ -1228,7 +1269,9 @@ function renderOverview(matches) {
 
   document.getElementById('ball-host').innerHTML = drawBall(pw, pd, pl);
   drawUnits(played);
-  drawBeeswarm(played);
+  swarmPlayed = played;
+  populateSwarmCountries(played);
+  redrawSwarm();
 }
 
 document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -1243,6 +1286,22 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
 document.getElementById('search-box').addEventListener('input', renderAll);
 document.getElementById('refresh-btn').addEventListener('click', fetchMatches);
 
+// Mini buscador de país para el beeswarm
+const swarmCountryInput = document.getElementById('swarm-country');
+if (swarmCountryInput) {
+  swarmCountryInput.addEventListener('input', () => {
+    const v = swarmCountryInput.value.trim().toLowerCase();
+    const known = [...new Set(swarmPlayed.map(m => m.primerGolEquipo).filter(Boolean))];
+    swarmCountry = known.find(c => c.toLowerCase() === v) || null;
+    redrawSwarm();
+  });
+  document.getElementById('swarm-clear').addEventListener('click', () => {
+    swarmCountryInput.value = '';
+    swarmCountry = null;
+    redrawSwarm();
+  });
+}
+
 // Redibujar el beeswarm solo cuando se cruza el umbral móvil (rotar / redimensionar).
 let wasMobile = window.innerWidth <= 560, resizeT;
 window.addEventListener('resize', () => {
@@ -1251,8 +1310,7 @@ window.addEventListener('resize', () => {
     const isMobile = window.innerWidth <= 560;
     if (isMobile === wasMobile) return;
     wasMobile = isMobile;
-    const played = allMatches.filter(m => m.jugado);
-    if (played.length) drawBeeswarm(played);
+    if (swarmPlayed.length) redrawSwarm();
   }, 180);
 });
 
