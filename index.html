@@ -324,7 +324,7 @@
     <div class="viz-head">
       <div class="viz-eyebrow">¿Importa cuándo?</div>
       <div class="viz-title">El minuto del primer gol y lo que pasó después</div>
-      <div class="viz-sub">Cada punto es un partido, ubicado en el minuto del primer gol y coloreado por el resultado de quien lo metió. Si los rojos se juntan a la derecha, abrir tarde sería más frágil.</div>
+      <div class="viz-sub" id="swarm-sub">Cada punto es el primer gol de un partido, ubicado en su minuto y coloreado por el resultado de quien lo metió. Si los rojos se juntan a la derecha, abrir tarde sería más frágil.</div>
     </div>
     <div class="swarm-filter">
       <label for="swarm-country">Filtrar por país:</label>
@@ -567,6 +567,11 @@ function transform(data) {
         row.resultadoPrimerGol = 'empate'; // 0-0
       }
     }
+
+    // Todos los goles del partido (para el filtro por país en el beeswarm)
+    row.goles = [];
+    (mt.goals1 || []).forEach(g => row.goles.push({ team: teamES(mt.team1), name: g.name, minute: g.minute, owngoal: !!g.owngoal, penalty: !!g.penalty }));
+    (mt.goals2 || []).forEach(g => row.goles.push({ team: teamES(mt.team2), name: g.name, minute: g.minute, owngoal: !!g.owngoal, penalty: !!g.penalty }));
 
     rows.push(row);
   }
@@ -883,11 +888,9 @@ function drawUnits(played) {
   document.getElementById('unit-grid').innerHTML = html;
 }
 
-// ── Beeswarm: minuto del primer gol vs. resultado ───────────────────────────
-function drawBeeswarm(played) {
-  const pts = played
-    .filter(m => m.primerGolMinuto != null && m.resultadoPrimerGol)
-    .map(m => ({ min: minuteSort(m.primerGolMinuto), r: m.resultadoPrimerGol, m }));
+// ── Beeswarm: minuto del gol vs. resultado ──────────────────────────────────
+// pts = [{min, r, m, g?}]. Si `country` viene, cada punto es un gol de ese país.
+function drawBeeswarm(pts, country) {
 
   // Geometría responsive: en móvil uso un viewBox más angosto para que los
   // puntos ocupen proporcionalmente más ancho y no se vean diminutos al escalar.
@@ -932,7 +935,8 @@ function drawBeeswarm(played) {
   for (const p of placed) {
     const dur = Math.max(0.25, (p.min / maxMin) * TOTAL).toFixed(2);
     const off = (padL - p.x).toFixed(1); // arranca en la línea de saque
-    dots += `<circle class="swarm-dot" data-tip="${swarmTip(p.m).replace(/"/g, '&quot;')}" style="--sx:${off}px;animation-duration:${dur}s" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${rad}" fill="${colorVar(p.r)}" stroke="#0a1628" stroke-opacity="0.5" stroke-width="1"/>`;
+    const tip = country ? goalTip(p.m, p.g, country) : swarmTip(p.m);
+    dots += `<circle class="swarm-dot" data-tip="${tip.replace(/"/g, '&quot;')}" style="--sx:${off}px;animation-duration:${dur}s" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${rad}" fill="${colorVar(p.r)}" stroke="#0a1628" stroke-opacity="0.5" stroke-width="1"/>`;
   }
 
   document.getElementById('swarm-host').innerHTML = `
@@ -952,36 +956,72 @@ function drawBeeswarm(played) {
   const late  = pts.filter(p => p.min > 30);
   const wr = arr => arr.length ? Math.round(arr.filter(p => p.r === 'victoria').length / arr.length * 100) : 0;
   const mean = pts.length ? Math.round(pts.reduce((s, p) => s + p.min, 0) / pts.length) : 0;
-  document.getElementById('swarm-caption').innerHTML = pts.length
-    ? `En promedio, el primer gol cayó al <span class="hl">minuto ${mean}</span>. ` +
+  const cap = document.getElementById('swarm-caption');
+  if (!pts.length) {
+    cap.innerHTML = country ? `${country} todavía no metió goles en los partidos jugados.` : '';
+  } else if (country) {
+    const pt1 = pts.filter(p => p.min <= 45).length, pt2 = pts.length - pt1;
+    cap.innerHTML = `<span class="hl">${country}</span> lleva <span class="hl">${pts.length}</span> ${pts.length === 1 ? 'gol' : 'goles'}. ` +
+      `En promedio cayeron al <span class="hl">minuto ${mean}</span> — ${pt1} en el primer tiempo, ${pt2} en el segundo.`;
+  } else {
+    cap.innerHTML = `En promedio, el primer gol cayó al <span class="hl">minuto ${mean}</span>. ` +
       `Cuando llegó en los primeros 30', quien lo metió ganó el <span class="hl">${wr(early)}%</span> de las veces` +
-      (late.length ? `; después del 30', el <span class="hl">${wr(late)}%</span>.` : '.')
-    : '';
+      (late.length ? `; después del 30', el <span class="hl">${wr(late)}%</span>.` : '.');
+  }
 }
 
-// Llena el autocompletado con los países que metieron algún primer gol
+// Llena el autocompletado con los países que metieron algún gol
 function populateSwarmCountries(played) {
   const dl = document.getElementById('swarm-countries');
   if (!dl) return;
-  const countries = [...new Set(played.map(m => m.primerGolEquipo).filter(Boolean))]
-    .sort((a, b) => a.localeCompare(b, 'es'));
+  const set = new Set();
+  played.forEach(m => (m.goles || []).forEach(g => { if (g.team) set.add(g.team); }));
+  const countries = [...set].sort((a, b) => a.localeCompare(b, 'es'));
   dl.innerHTML = countries.map(c => `<option value="${c}"></option>`).join('');
+}
+
+// Resultado del partido para un país (para colorear sus goles)
+function matchResultFor(m, countryES) {
+  if (!m.jugado) return 'empate';
+  const isLocal = m.equipoLocal === countryES;
+  const gf = isLocal ? m.golesLocal : m.golesVisitante;
+  const ga = isLocal ? m.golesVisitante : m.golesLocal;
+  return gf > ga ? 'victoria' : (gf < ga ? 'derrota' : 'empate');
+}
+
+// Tooltip de un gol concreto (modo filtro por país)
+function goalTip(m, g, country) {
+  const isLocal = m.equipoLocal === country;
+  const rival = isLocal ? m.equipoVisitante : m.equipoLocal;
+  const gf = isLocal ? m.golesLocal : m.golesVisitante;
+  const ga = isLocal ? m.golesVisitante : m.golesLocal;
+  let etq = g.name || '';
+  if (g.owngoal) etq += ' (en propia)';
+  else if (g.penalty) etq += ' (pen)';
+  return `${etq} · min ${g.minute} · ${country} ${gf}-${ga} ${rival}`;
 }
 
 // Redibuja el beeswarm respetando el filtro de país
 function redrawSwarm() {
-  const data = swarmCountry
-    ? swarmPlayed.filter(m => m.primerGolEquipo === swarmCountry)
-    : swarmPlayed;
-  drawBeeswarm(data);
+  let pts;
+  if (swarmCountry) {
+    pts = [];
+    swarmPlayed.forEach(m => (m.goles || []).forEach(g => {
+      if (g.team === swarmCountry) pts.push({ min: minuteSort(g.minute), r: matchResultFor(m, swarmCountry), m, g });
+    }));
+  } else {
+    pts = swarmPlayed
+      .filter(m => m.primerGolMinuto != null && m.resultadoPrimerGol)
+      .map(m => ({ min: minuteSort(m.primerGolMinuto), r: m.resultadoPrimerGol, m }));
+  }
+  drawBeeswarm(pts, swarmCountry);
+
   const clearBtn = document.getElementById('swarm-clear');
   if (clearBtn) clearBtn.style.display = swarmCountry ? '' : 'none';
-  if (swarmCountry) {
-    const cap = document.getElementById('swarm-caption');
-    const n = data.filter(m => m.primerGolMinuto != null && m.resultadoPrimerGol).length;
-    cap.innerHTML = `<span class="hl">${swarmCountry}</span> metió el primer gol en ` +
-      `${n} ${n === 1 ? 'partido' : 'partidos'}. ` + cap.innerHTML;
-  }
+  const sub = document.getElementById('swarm-sub');
+  if (sub) sub.textContent = swarmCountry
+    ? `Cada punto es un gol de ${swarmCountry}, ubicado en el minuto en que cayó y coloreado según cómo terminó ese partido: verde lo ganó, naranjo empató, rojo lo perdió.`
+    : 'Cada punto es el primer gol de un partido, ubicado en su minuto y coloreado por el resultado de quien lo metió. Si los rojos se juntan a la derecha, abrir tarde sería más frágil.';
 }
 
 // ── ¿Quién aseguró matemáticamente el top-2 de su grupo? ────────────────────
@@ -1291,7 +1331,7 @@ const swarmCountryInput = document.getElementById('swarm-country');
 if (swarmCountryInput) {
   swarmCountryInput.addEventListener('input', () => {
     const v = swarmCountryInput.value.trim().toLowerCase();
-    const known = [...new Set(swarmPlayed.map(m => m.primerGolEquipo).filter(Boolean))];
+    const known = [...new Set(swarmPlayed.flatMap(m => (m.goles || []).map(g => g.team)).filter(Boolean))];
     swarmCountry = known.find(c => c.toLowerCase() === v) || null;
     redrawSwarm();
   });
