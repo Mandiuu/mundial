@@ -583,8 +583,8 @@ async function fetchMatches() {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     allMatches = transform(data);
-    if (!allMatches.length) throw new Error('El JSON no trajo partidos de fase de grupos.');
-    renderOverview(allMatches.filter(m => !m.esEliminacion));
+    if (!allMatches.length) throw new Error('El JSON no trajo partidos.');
+    renderOverview(allMatches);
     renderQualified(data);
     renderAwards(data);
     renderAll();
@@ -1251,7 +1251,7 @@ window.addEventListener('resize', () => {
     const isMobile = window.innerWidth <= 560;
     if (isMobile === wasMobile) return;
     wasMobile = isMobile;
-    const played = allMatches.filter(m => m.jugado && !m.esEliminacion);
+    const played = allMatches.filter(m => m.jugado);
     if (played.length) drawBeeswarm(played);
   }, 180);
 });
